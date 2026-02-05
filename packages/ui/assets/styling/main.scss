@@ -8,5 +8,20 @@
 }
 
 .first-row {
+    display: grid;
+    gap: calc($spacing * 8);
     grid-template-columns: repeat(3, minmax(0px, 1fr));
+}
+
+.double-column {
+    grid-column: span 2 / span 2;
+}
+
+.row {
+    margin-bottom: calc($spacing * 8);
+}
+
+.note-icon {
+    color: $color-light;
+    outline-color: color-mix(in oklab, oklch(0.708, 0, 0) 50%, transparent);
 }

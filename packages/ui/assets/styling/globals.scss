@@ -58,10 +58,22 @@ a {
 }
 
 .card {
+  background-color: color-mix(in oklab, $color-white 10%, transparent);
   backdrop-filter: blur(8px);
-  border-color: color-mix(in oklab, $color-white 20%, transparent);
   min-width: 100px;
   min-height: 80px;
   padding: calc($spacing * 8);
+  border-style: solid;
+  border-color: color-mix(in oklab, $color-white 20%, transparent);
+  border-width: 1px; 
   border-radius: 1rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, 
+              rgba(0, 0, 0, 0) 0px 0px 0px 0px, 
+              rgba(0, 0, 0, 0) 0px 0px 0px 0px, 
+              rgba(0, 0, 0, 0) 0px 0px 0px 0px, 
+              rgba(0, 0, 0, 0.25) 0px 25px 50px -12px;
+}
+
+.gap-2 {
+  gap: calc($spacing * 2);
 }
