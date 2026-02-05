@@ -1,0 +1,67 @@
+@import "./fonts.scss";
+@import "./theme.scss";
+
+* {
+    box-sizing: border-box;
+    font-family: 'adwaita', 'adwaita-fallback';
+}
+
+header {
+  text-align: center;
+  margin-bottom: $spacing * 12;
+}
+
+body {
+    background-image: linear-gradient(to right bottom, $color-dark 0%, $color-main 50%, $color-dark 100%);
+    background-repeat: no-repeat;
+    min-height: 100vh;
+    min-width: 100vw;
+    color: $text-color;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0.5rem 0;
+}
+
+h1 {
+  font-size: 3rem;
+  font-weight: 700;
+}
+
+h3 {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+h6 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  text-decoration: none;
+  font-weight: bold;
+  color: white;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.card {
+  backdrop-filter: blur(8px);
+  border-color: color-mix(in oklab, $color-white 20%, transparent);
+  min-width: 100px;
+  min-height: 80px;
+  padding: calc($spacing * 8);
+  border-radius: 1rem;
+}

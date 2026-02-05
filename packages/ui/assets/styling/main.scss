@@ -1,0 +1,12 @@
+@import "./theme.scss";
+
+.page-wrapper {
+    margin-inline: auto;
+    max-width: 72rem;
+    padding-block: calc($spacing * 8);
+    padding-inline: calc($spacing * 4);
+}
+
+.first-row {
+    grid-template-columns: repeat(3, minmax(0px, 1fr));
+}

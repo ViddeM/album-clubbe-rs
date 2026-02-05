@@ -1,0 +1,19 @@
+@font-face {
+    font-family: 'adwaita';
+    // Ensure that this is served by the wrapping package.
+    src: url(/fonts/adwaita_sans_regular.ttf) format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'adwaita-fallback';
+    src: local("Arial");
+    ascent-override: 84.18%;
+    descent-override: 20.79%;
+    line-gap-override: 0.00%;
+    size-adjust: 109.17%
+}
+
+.font {
+    font-family: 'adwaita', 'adwaita-fallback'
+}
