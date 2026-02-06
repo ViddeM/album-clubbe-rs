@@ -1,9 +1,10 @@
 @import "./fonts.scss";
 @import "./theme.scss";
 
-* {
+html {
     box-sizing: border-box;
     font-family: 'adwaita', 'adwaita-fallback';
+    font-size: $font-size;
 }
 
 header {
@@ -33,14 +34,20 @@ h1 {
   font-weight: 700;
 }
 
+h2 {
+  font-size: 1.25rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+}
+
 h3 {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 2.25rem;
+  font-weight: 400;
 }
 
 h6 {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 p {
@@ -77,3 +84,13 @@ a {
 .gap-2 {
   gap: calc($spacing * 2);
 }
+
+.gap-6 {
+  gap: calc($spacing * 6);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+}
+

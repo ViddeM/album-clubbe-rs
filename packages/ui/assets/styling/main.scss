@@ -21,7 +21,100 @@
     margin-bottom: calc($spacing * 8);
 }
 
+.current-album-heading {
+    color: $color-purple-200;
+    outline-color: color-mix(in oklab, rgb(161, 161, 161) 50%, transparent);
+}
+
+.album-art-container {
+    flex-shrink: 0;
+}
+
+.album-art {
+    width: 100%;
+    @media (width >= $medium-breakpoint) {
+        width: calc($spacing * 64);
+    }
+    height: calc($spacing * 64);
+    object-fit: cover;
+    border-radius: $radius;
+    box-shadow: 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+.current-album-container {
+    display: flex;
+    flex-direction: column;
+    @media (width >= $medium-breakpoint) {
+        flex-direction: row;
+    }
+
+}
+
+.album-info-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1
+}
+
+.album-name {
+    font-weight: 700;
+    line-height: calc(2.5 / 2.25);
+    color: $color-white;
+    margin-bottom: calc($spacing * 2)
+}
+
+.album-artist {
+    color: $color-purple-200;
+    font-size: 1.5rem;
+    line-height: calc(2 / 1.5);
+    margin-bottom: calc($spacing * 4);
+}
+
+.album-picked-by {
+    color: $color-purple-300;
+    margin-bottom: calc($spacing * 6);
+
+    > span {
+        color: $color-white;
+        font-weight: 600;
+    }
+}
+
+.spotify-link {
+    display: inline-flex;
+    align-items: center;
+    background-color: $color-green-600;
+    color: $color-white;
+    padding-inline: calc($spacing * 6);
+    padding-block: calc($spacing * 3);
+    border-radius: 9999px; // Ensure maximum border-radius.
+    font-weight: 600;
+    width: fit-content;
+
+    transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+
+    &:hover {
+        background-color: $color-green-700;
+    }
+}
+
 .note-icon {
-    color: $color-light;
-    outline-color: color-mix(in oklab, oklch(0.708, 0, 0) 50%, transparent);
+    width: calc($spacing * 5);
+    height: calc($spacing * 5);
+    color: $color-purple-300;
+    outline-color: color-mix(in oklab, rgb(161, 161, 161) 50%, transparent);
+    border-color: rgba(0, 0, 0, 0.102);
+}
+
+.spotify-logo {
+    width: calc($spacing * 5);
+    height: calc($spacing * 5);
+}
+
+.external-link-icon {
+    width: calc($spacing * 4);
+    height: calc($spacing * 4);
 }
