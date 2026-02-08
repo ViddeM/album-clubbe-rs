@@ -3,7 +3,7 @@ use std::sync::Arc;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::fa_brands_icons::FaSpotify;
 use dioxus_free_icons::icons::fa_regular_icons::FaClock;
-use dioxus_free_icons::icons::fi_icons::{FiCalendar, FiExternalLink, FiMapPin, FiMusic};
+use dioxus_free_icons::icons::fi_icons::{FiCalendar, FiExternalLink, FiMapPin, FiMusic, FiUsers};
 use dioxus_free_icons::Icon;
 
 const MAIN_SCSS: Asset = asset!("/assets/styling/main.scss");
@@ -57,6 +57,7 @@ pub fn Main() -> Element {
             "Anaztasia",
             "EG",
             "Dino",
+            "Vidde",
         ]
         .into_iter()
         .map(|m| m.into())
@@ -74,9 +75,9 @@ pub fn Main() -> Element {
             div { class: "first-row row",
                 div { class: "double-column",
                     div { class: "card",
-                        div { class: "gap-2 row",
+                        div { class: "current-album-heading",
                             Icon { icon: FiMusic, class: "note-icon" }
-                            h2 { class: "current-album-heading", "Current Album" }
+                            h2 { class: "current-album-heading-text", "Nuvarande album" }
                         }
 
                         CurrentAlbumView {
@@ -94,7 +95,10 @@ pub fn Main() -> Element {
             }
 
             div { class: "row",
-                div { class: "card", "PEPE" }
+                UpcomingRotation {
+                    current_person: data().current_person,
+                    members: data().members,
+                }
             }
         }
     }
@@ -185,6 +189,64 @@ fn NextMeeting(next_meeting: Option<Meeting>) -> Element {
                 }
             } else {
                 div { class: "next-meeting-text", "Inget möte inplanerat" }
+            }
+        }
+    }
+}
+
+#[component]
+fn UpcomingRotation(current_person: ReadSignal<Name>, members: ReadSignal<Vec<Name>>) -> Element {
+    let num_members = use_memo(move || members().len() as i64);
+
+    let ordered_members = use_memo(move || {
+        let (curr_index, _) = members()
+            .iter()
+            .enumerate()
+            .find(|&(_, name)| name == &current_person())
+            .expect("Current person to be in members list");
+        let curr_index = curr_index as i64;
+
+        let mut members = members()
+            .into_iter()
+            .enumerate()
+            .map(|(i, n)| (i as i64, n))
+            .map(|(i, n)| (((i - curr_index + num_members()) % num_members()), n))
+            .collect::<Vec<_>>();
+
+        members.sort_by(|(a, _), (b, _)| a.cmp(b));
+
+        members
+            .into_iter()
+            .map(|(_, name)| name)
+            .collect::<Vec<_>>()
+    });
+
+    rsx! {
+        div { class: "card full-width",
+            div { class: "upcoming-header",
+                Icon { class: "upcoming-header-icon", icon: FiUsers }
+                h2 { class: "upcoming-header-text", "Nästa på tur" }
+            }
+
+            div { class: "upcoming-grid",
+                for (i , member) in ordered_members().iter().enumerate() {
+                    div {
+                        key: "{member}",
+                        class: "upcoming-grid-element",
+                        class: if i == 0 { "upcoming-grid-element-current" } else { "upcoming-grid-element-normal" },
+                        div { class: "order-text", "{i + 1}" }
+                        div { class: if i == 0 { "current-name-text" } else { "inactive-name-text" },
+                            "{member}"
+                        }
+
+                        if i == 0 {
+                            div { class: "sub-name-text", "Nuvarande" }
+                        }
+                        if i == 1 {
+                            div { class: "sub-name-text", "Nästa" }
+                        }
+                    }
+                }
             }
         }
     }

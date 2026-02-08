@@ -22,6 +22,14 @@
 }
 
 .current-album-heading {
+    display: flex;
+    align-items: center;
+    gap: calc($spacing * 2);
+    margin-bottom: calc($spacing * 4);
+}
+
+
+.current-album-heading-text {
     color: $color-purple-200;
     outline-color: color-mix(in oklab, rgb(161, 161, 161) 50%, transparent);
 }
@@ -159,4 +167,80 @@
     color: $color-purple-300;
     font-size: $font-size-small;
     line-height: $line-height-small;
+}
+
+.upcoming-header {
+    display: flex;
+    align-items: center;
+    gap: calc($spacing * 2);
+    margin-bottom: calc($spacing * 6);
+}
+
+.upcoming-header-icon {
+    width: calc($spacing * 5);
+    height: calc($spacing * 5);
+    color: $color-purple-300;
+}
+
+.upcoming-header-text {
+    color: $color-purple-200;
+    font-size: $font-size-xl;
+    line-height: $line-height-xl;
+}
+
+.upcoming-grid {
+    display: grid;
+    gap: calc($spacing * 4);
+
+    grid-template-columns: repeat(2, minmax(0px, 1fr));
+    @media (width >= 48rem) {
+        grid-template-columns: repeat(3, minmax(0px, 1fr));
+    }
+    @media (width >= 64rem) {
+        grid-template-columns: repeat(5, minmax(0px, 1fr));
+    }
+}
+
+.upcoming-grid-element {
+    text-align: center;
+    padding: calc($spacing * 4);
+    border-radius: $radius;
+    border-style: solid;
+}
+
+.upcoming-grid-element-current {
+    background-color: color-mix(in oklab, $color-purple-600 50%, transparent);
+    border-width: 2px;
+    border-color: $color-purple-400;
+    scale: 105% 105%;
+}
+
+.upcoming-grid-element-normal {
+    background-color: color-mix(in oklab, $color-white 5%, transparent);
+    border-width: 1px;
+    border-color: color-mix(in oklab, $color-white 10%, transparent);
+}
+
+.order-text {
+    font-size: 1.875rem;
+    line-height: calc(2.25 / 1.875);
+    font-weight: 700;
+    color: $color-white;
+    margin-bottom: $spacing
+}
+
+.current-name-text {
+    color: $color-white;
+    font-weight: $font-weight-semibold;
+}
+
+.inactive-name-text {
+    color: $color-purple-200;
+}
+
+.sub-name-text {
+    font-size: $font-size-xs;
+    line-height: $line-height-xs;
+    color: $color-purple-200;
+    margin-top: $spacing;
 }

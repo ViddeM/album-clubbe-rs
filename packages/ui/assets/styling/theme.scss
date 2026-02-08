@@ -27,7 +27,12 @@ $color-black: #000;
 $color-white: #fff;
 
 $font-weight-semibold: 600;
+
+$font-size-xs: 0.75rem;
+$line-height-xs: calc(1 / 0.75);
 $font-size-lg: 1.125rem;
 $line-height-lg: calc(1.75 / 1.125);
 $font-size-small: 0.875rem;
 $line-height-small: calc(1.25 / 0.875);
+$font-size-xl: 1.25rem;
+$line-height-xl: calc(1.75 / 1.25);
