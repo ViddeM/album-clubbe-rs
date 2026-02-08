@@ -1,8 +1,11 @@
 @import "./fonts.scss";
 @import "./theme.scss";
 
-html {
+* {
     box-sizing: border-box;
+}
+
+html {
     font-family: 'adwaita', 'adwaita-fallback';
     font-size: $font-size;
 }
@@ -68,7 +71,7 @@ a {
   background-color: color-mix(in oklab, $color-white 10%, transparent);
   backdrop-filter: blur(8px);
   min-width: 100px;
-  min-height: 80px;
+  // min-height: 80px;
   padding: calc($spacing * 8);
   border-style: solid;
   border-color: color-mix(in oklab, $color-white 20%, transparent);
@@ -91,6 +94,12 @@ a {
 
 .row {
   display: flex;
-  align-items: center;
 }
 
+.full-height {
+  height: 100%;
+}
+
+.color-purple-400 {
+  color: $color-purple-400;
+}

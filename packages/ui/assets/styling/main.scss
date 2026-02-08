@@ -118,3 +118,45 @@
     width: calc($spacing * 4);
     height: calc($spacing * 4);
 }
+
+.calendar-icon-heading {
+    width: calc($spacing * 5);
+    height: calc($spacing * 5);
+    color: $color-purple-300;
+}
+
+.next-meeting-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: calc($spacing * 6);
+    gap: calc($spacing * 2);
+
+    > h2 {
+        color: $color-purple-200;
+    }
+}
+
+.next-meeting-info-container {
+    & > :not(:last-child) {
+        margin-block-end: calc($spacing * 4);
+    }
+}
+
+.next-meeting-text {
+    color: $color-white;
+    font-weight: $font-weight-semibold;
+    font-size: $font-size-lg;
+    line-height: $line-height-lg;
+}
+
+.next-meeting-row {
+    display: flex;
+    align-items: start;
+    gap: calc($spacing * 3);
+}
+
+.next-meeting-subheading {
+    color: $color-purple-300;
+    font-size: $font-size-small;
+    line-height: $line-height-small;
+}

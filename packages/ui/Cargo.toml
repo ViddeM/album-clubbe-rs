@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 dioxus = { workspace = true }
 api = { workspace = true }
+dioxus-free-icons = { version = "0.10.0", features = ["feather", "font-awesome-brands", "font-awesome-regular", "font-awesome-solid"] }
 
 [features]
 server = ["api/server"]
