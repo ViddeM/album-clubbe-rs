@@ -9,6 +9,8 @@ fn main() {
 #[component]
 fn App() -> Element {
     rsx! {
+        document::Title { "Albumklubben" }
+
         Setup {}
         Main {}
     }

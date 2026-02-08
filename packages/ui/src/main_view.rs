@@ -37,27 +37,19 @@ struct Meeting {
 pub fn Main() -> Element {
     let data = use_memo(move || Data {
         current_album: Album {
-            name: "Sgt. Pepper's Lonely Hearts Club Band (Remastered)".into(),
-            album_art: "https://i.scdn.co/image/ab67616d0000b273c92b57b8307e5999ec2fed69".into(),
-            spotify_url: "https://open.spotify.com/album/6QaVfG1pHYl1z15ZxkvVDW".into(),
-            artist: "The Beatles".into(),
+            name: "Vapen & ammunition".into(),
+            album_art: "https://i.scdn.co/image/ab67616d0000b27338195e65555be2b7f9324e1c".into(),
+            spotify_url: "https://open.spotify.com/album/2DGzTm2R2v3G0IjnxXtP3Y".into(),
+            artist: "Kent".into(),
         },
         next_meeting: Some(Meeting {
-            date: "Onsdag 15/2".into(),
-            time: Some("17:55".into()),
+            date: "Måndag 16/2".into(),
+            time: Some("TBD".into()),
             location: Some("Discord".into()),
         }),
-        current_person: "Vidde".into(),
+        current_person: "Nox".into(),
         members: vec![
-            "Håll",
-            "Karro",
-            "Swexboi",
-            "Nox",
-            "Yoda",
-            "Anaztasia",
-            "EG",
-            "Dino",
-            "Vidde",
+            "Swexbe", "Nox", "Karro", "Vidde", "Stasia", "Dino", "Yoda", "Carl", "Arvid",
         ]
         .into_iter()
         .map(|m| m.into())
