@@ -43,7 +43,7 @@ pub fn Main() -> Element {
             artist: "Kent".into(),
         },
         next_meeting: Some(Meeting {
-            date: "Måndag 16/2".into(),
+            date: "Söndag 22/2".into(),
             time: Some("TBD".into()),
             location: Some("Discord".into()),
         }),
