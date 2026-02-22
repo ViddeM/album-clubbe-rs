@@ -3,7 +3,7 @@ use dioxus::prelude::*;
 #[cfg(feature = "server")]
 use std::sync::OnceLock;
 
-use crate::api_models::{AdminOverview, AdminPing, Data, SpotifyAlbumSearchItem};
+use crate::api_models::{Data, SpotifyAlbumSearchItem};
 
 pub mod api_models;
 
@@ -74,27 +74,6 @@ fn ensure_admin_token(admin_token: &str) -> Result<(), ServerFnError> {
 #[get("/api/info")]
 pub async fn get_current() -> Result<Data, ServerFnError> {
     Ok(get_sample_data())
-}
-
-#[post("/api/admin/overview")]
-pub async fn get_admin_overview(admin_token: String) -> Result<AdminOverview, ServerFnError> {
-    ensure_admin_token(&admin_token)?;
-
-    let data = get_sample_data();
-    Ok(AdminOverview {
-        members_count: data.members.len(),
-        has_scheduled_meeting: data.next_meeting.is_some(),
-        current_picker: data.current_person,
-    })
-}
-
-#[post("/api/admin/ping")]
-pub async fn admin_ping(admin_token: String) -> Result<AdminPing, ServerFnError> {
-    ensure_admin_token(&admin_token)?;
-
-    Ok(AdminPing {
-        status: "ok".to_string(),
-    })
 }
 
 #[post("/api/admin/spotify/search")]

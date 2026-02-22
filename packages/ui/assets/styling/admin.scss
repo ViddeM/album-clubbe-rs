@@ -1,0 +1,79 @@
+@import "./theme.scss";
+
+.admin-page-wrapper {
+    margin-inline: auto;
+    max-width: 72rem;
+    padding-block: calc($spacing * 5);
+    padding-inline: calc($spacing * 3);
+
+    @media (width >= $medium-breakpoint) {
+        padding-block: calc($spacing * 8);
+        padding-inline: calc($spacing * 4);
+    }
+}
+
+.admin-spotify-link {
+    display: inline-flex;
+    align-items: center;
+    background-color: $color-green-600;
+    color: $color-white;
+    padding-inline: calc($spacing * 6);
+    padding-block: calc($spacing * 3);
+    border-radius: 9999px;
+    font-weight: 600;
+    width: fit-content;
+
+    transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+
+    &:hover {
+        background-color: $color-green-700;
+    }
+}
+
+.admin-search {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 6);
+}
+
+.album-search-results {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 4);
+}
+
+.album-result-card {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: calc($spacing * 5);
+    padding: calc($spacing * 4);
+}
+
+.album-result-thumb {
+    width: calc($spacing * 20);
+    height: calc($spacing * 20);
+    object-fit: cover;
+    border-radius: $radius;
+    flex-shrink: 0;
+}
+
+.album-result-info {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 2);
+    flex: 1;
+}
+
+.album-result-name {
+    font-weight: $font-weight-semibold;
+    color: $color-white;
+}
+
+.album-result-artists {
+    color: $color-purple-200;
+    font-size: $font-size-small;
+    line-height: $line-height-small;
+}

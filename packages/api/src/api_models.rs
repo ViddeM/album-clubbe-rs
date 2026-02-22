@@ -13,18 +13,6 @@ pub struct Data {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AdminOverview {
-    pub members_count: usize,
-    pub has_scheduled_meeting: bool,
-    pub current_picker: Name,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AdminPing {
-    pub status: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SpotifyAlbumSearchItem {
     pub id: String,
     pub name: String,
