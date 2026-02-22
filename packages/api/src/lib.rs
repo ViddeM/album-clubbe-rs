@@ -12,17 +12,17 @@ pub async fn get_current() -> Result<Data, ServerFnError> {
 
     let data = Data {
         current_album: Album {
-            name: "Vapen & ammunition".into(),
-            album_art: "https://i.scdn.co/image/ab67616d0000b27338195e65555be2b7f9324e1c".into(),
-            spotify_url: "https://open.spotify.com/album/2DGzTm2R2v3G0IjnxXtP3Y".into(),
-            artist: "Kent".into(),
+            name: "My Chemical Romance".into(),
+            album_art: "https://i.scdn.co/image/ab67616d0000b27317f77fab7e8f18d5f9fee4a1".into(),
+            spotify_url: "https://open.spotify.com/album/0FZK97MXMm5mUQ8mtudjuK".into(),
+            artist: "".into(),
         },
         next_meeting: Some(Meeting {
-            date: "Måndag 16/2".into(),
-            time: Some("TBD".into()),
+            date: "Söndag 8/3".into(),
+            time: Some("18:00".into()),
             location: Some("Discord".into()),
         }),
-        current_person: "Nox".into(),
+        current_person: "Karro".into(),
         members: vec![
             "Swexbe", "Nox", "Karro", "Vidde", "Stasia", "Dino", "Yoda", "Carl", "Arvid",
         ]
