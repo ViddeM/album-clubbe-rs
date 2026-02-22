@@ -19,8 +19,10 @@ body {
     background-image: linear-gradient(to right bottom, $color-dark 0%, $color-main 50%, $color-dark 100%);
     background-repeat: no-repeat;
     min-height: 100vh;
-    min-width: 100vw;
+    max-width: 100vw;
+    width: 100vw;
     color: $text-color;
+    margin: 0;
 }
 
 h1,
@@ -71,7 +73,6 @@ a {
   background-color: color-mix(in oklab, $color-white 10%, transparent);
   backdrop-filter: blur(8px);
   min-width: 100px;
-  // min-height: 80px;
   padding: calc($spacing * 8);
   border-style: solid;
   border-color: color-mix(in oklab, $color-white 20%, transparent);

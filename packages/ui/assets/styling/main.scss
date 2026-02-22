@@ -3,22 +3,41 @@
 .page-wrapper {
     margin-inline: auto;
     max-width: 72rem;
-    padding-block: calc($spacing * 8);
-    padding-inline: calc($spacing * 4);
+    padding-block: calc($spacing * 5);
+    padding-inline: calc($spacing * 3);
+
+    @media (width >= $medium-breakpoint) {
+            padding-block: calc($spacing * 8);
+            padding-inline: calc($spacing * 4);
+    }
 }
+
 
 .first-row {
     display: grid;
-    gap: calc($spacing * 8);
-    grid-template-columns: repeat(3, minmax(0px, 1fr));
+    gap: calc($spacing * 4);
+    grid-template-columns: minmax(0px, 1fr);
+
+    @media (width >= $medium-breakpoint) {
+        gap: calc($spacing * 8);
+        grid-template-columns: repeat(3, minmax(0px, 1fr));
+    }
 }
 
 .double-column {
-    grid-column: span 2 / span 2;
+    grid-column: span 1 / span 1;
+    
+    @media (width >= $medium-breakpoint) {
+        grid-column: span 2 / span 2;
+    }
 }
 
 .row {
-    margin-bottom: calc($spacing * 8);
+    margin-bottom: calc($spacing * 4);
+
+    @media (width >= $medium-breakpoint) {
+        margin-bottom: calc($spacing * 8);
+    }
 }
 
 .current-album-heading {
@@ -36,33 +55,50 @@
 
 .album-art-container {
     flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+
+    @media (width >= $medium-breakpoint) {
+            width: auto;
+    }
 }
 
 .album-art {
     width: 100%;
-    @media (width >= $medium-breakpoint) {
-        width: calc($spacing * 64);
-    }
-    height: calc($spacing * 64);
+    max-width: calc($spacing * 64);
+    height: auto;
+    aspect-ratio: 1 / 1;
     object-fit: cover;
     border-radius: $radius;
     box-shadow: 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+    @media (width >= $medium-breakpoint) {
+        width: calc($spacing * 64);
+    }
 }
 
 .current-album-container {
     display: flex;
     flex-direction: column;
+    
     @media (width >= $medium-breakpoint) {
         flex-direction: row;
     }
-
 }
 
 .album-info-container {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    flex: 1
+    align-items: center;
+    text-align: center;
+    flex: 1;
+    
+    @media (width >= $medium-breakpoint) {
+        align-items: flex-start;
+        text-align: left;
+    }
 }
 
 .album-name {
@@ -106,6 +142,11 @@
 
     &:hover {
         background-color: $color-green-700;
+    }
+    
+    @media (width < $medium-breakpoint) {
+        width: 100%;
+        justify-content: center;
     }
 }
 
@@ -192,7 +233,11 @@
     display: grid;
     gap: calc($spacing * 4);
 
-    grid-template-columns: repeat(2, minmax(0px, 1fr));
+    grid-template-columns: minmax(0px, 1fr);
+    
+    @media (width >= 36rem) {
+        grid-template-columns: repeat(2, minmax(0px, 1fr));
+    }
     @media (width >= 48rem) {
         grid-template-columns: repeat(3, minmax(0px, 1fr));
     }
