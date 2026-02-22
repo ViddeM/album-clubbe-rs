@@ -210,6 +210,49 @@ select {
     width: fit-content;
 }
 
+// ── Member order ─────────────────────────────────────────────────────────────────────────────────
+
+.member-order-list {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 2);
+}
+
+.member-order-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc($spacing * 4);
+    padding: calc($spacing * 3) calc($spacing * 4);
+    background-color: color-mix(in oklab, $color-white 6%, transparent);
+    border: 1px solid color-mix(in oklab, $color-white 12%, transparent);
+    border-radius: $radius;
+}
+
+.member-order-name {
+    font-size: $font-size-small;
+    line-height: $line-height-small;
+    font-weight: $font-weight-semibold;
+    color: $color-white;
+    flex: 1;
+}
+
+.member-order-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: calc($spacing * 2);
+    flex-shrink: 0;
+
+    button {
+        padding-inline: calc($spacing * 3);
+        padding-block: calc($spacing * 2);
+        min-width: calc($spacing * 9);
+        font-size: $font-size-small;
+        line-height: $line-height-small;
+    }
+}
+
 // ── Submit section ───────────────────────────────────────────────────────────────────────────────
 
 .admin-submit-section {

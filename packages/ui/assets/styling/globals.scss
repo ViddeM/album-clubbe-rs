@@ -108,3 +108,20 @@ a {
 .color-purple-400 {
   color: $color-purple-400;
 }
+
+.site-footer {
+  margin-top: calc($spacing * 12);
+  padding-block: calc($spacing * 6);
+  border-top: 1px solid color-mix(in oklab, $color-white 15%, transparent);
+  text-align: center;
+
+  a {
+    color: $color-purple-300;
+    font-size: $font-size-small;
+    font-weight: $font-weight-semibold;
+
+    &:hover {
+      color: $color-white;
+    }
+  }
+}

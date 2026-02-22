@@ -22,7 +22,8 @@ pub async fn init_pool(db_url: &str) -> Result<SqlitePool, sqlx::Error> {
 async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS members (
-            name TEXT NOT NULL PRIMARY KEY
+            name       TEXT    NOT NULL PRIMARY KEY,
+            sort_order INTEGER NOT NULL DEFAULT 0
         )",
     )
     .execute(pool)
@@ -67,9 +68,10 @@ async fn seed_members(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .await?;
 
     if count == 0 {
-        for member in INITIAL_MEMBERS {
-            sqlx::query("INSERT OR IGNORE INTO members (name) VALUES (?)")
+        for (i, member) in INITIAL_MEMBERS.iter().enumerate() {
+            sqlx::query("INSERT OR IGNORE INTO members (name, sort_order) VALUES (?, ?)")
                 .bind(member)
+                .bind(i as i64)
                 .execute(pool)
                 .await?;
         }

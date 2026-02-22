@@ -1,3 +1,4 @@
+use api::admin_reorder_members;
 use api::admin_set_current;
 use api::admin_spotify_album_search;
 use api::api_models::SpotifyAlbumSearchItem;
@@ -31,6 +32,7 @@ pub fn Admin() -> Element {
     // Members + submit feedback
     let mut members = use_signal(Vec::<String>::new);
     let mut submit_state = use_signal(|| None::<Result<(), String>>);
+    let mut reorder_state = use_signal(|| None::<Result<(), String>>);
 
     // Load members on mount via the info endpoint.
     use_future(move || async move {
@@ -45,7 +47,6 @@ pub fn Admin() -> Element {
             header {
                 h1 { "Admin" }
                 p { "Hantera nuvarande album, möte och väljare." }
-                a { href: "/", "Tillbaka till startsidan" }
             }
 
             // ── Token ───────────────────────────────────────────────────────
@@ -235,6 +236,72 @@ pub fn Admin() -> Element {
                 }
             }
 
+            // ── Member order ─────────────────────────────────────────────────
+            div { class: "card admin-section",
+                h2 { "Medlemsordning" }
+                p { class: "admin-hint", "Ändra ordningen på medlemmarna i rotationen." }
+
+                div { class: "member-order-list",
+                    for (i , member) in members().iter().enumerate() {
+                        div { key: "{member}", class: "member-order-row",
+                            span { class: "member-order-name", "{member}" }
+                            div { class: "member-order-buttons",
+                                button {
+                                    class: "admin-button-ghost",
+                                    disabled: i == 0,
+                                    onclick: move |_| {
+                                        let mut list = members();
+                                        if i > 0 {
+                                            list.swap(i - 1, i);
+                                            members.set(list);
+                                            reorder_state.set(None);
+                                        }
+                                    },
+                                    "↑"
+                                }
+                                button {
+                                    class: "admin-button-ghost",
+                                    disabled: i + 1 >= members().len(),
+                                    onclick: move |_| {
+                                        let mut list = members();
+                                        if i + 1 < list.len() {
+                                            list.swap(i, i + 1);
+                                            members.set(list);
+                                            reorder_state.set(None);
+                                        }
+                                    },
+                                    "↓"
+                                }
+                            }
+                        }
+                    }
+                }
+
+                button {
+                    class: "admin-button",
+                    onclick: move |_| {
+                        let token = admin_token();
+                        let ordered = members();
+                        reorder_state.set(None);
+                        spawn(async move {
+                            let result = admin_reorder_members(token, ordered)
+                                .await
+                                .map_err(|e| e.to_string());
+                            reorder_state.set(Some(result));
+                        });
+                    },
+                    "Spara ordning"
+                }
+
+                if let Some(result) = reorder_state() {
+                    if result.is_ok() {
+                        p { class: "admin-success", "✓ Ordning sparad!" }
+                    } else if let Err(err) = result {
+                        p { class: "admin-error", "Fel: {err}" }
+                    }
+                }
+            }
+
             // ── Submit ───────────────────────────────────────────────────────
             div { class: "card admin-section admin-submit-section",
                 button {
@@ -287,6 +354,10 @@ pub fn Admin() -> Element {
                         p { class: "admin-error", "Fel: {err}" }
                     }
                 }
+            }
+
+            footer { class: "site-footer",
+                a { href: "/", "Tillbaka till startsidan" }
             }
         }
     }

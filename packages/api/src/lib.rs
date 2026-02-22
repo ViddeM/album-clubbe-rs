@@ -24,7 +24,7 @@ const ADMIN_TOKEN_ENV: &str = "ADMIN_TOKEN";
 async fn get_db() -> Result<&'static sqlx::SqlitePool, ServerFnError> {
     DB.get_or_try_init(|| async {
         let db_url =
-            std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:album_clube.db".to_string());
+            std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:database.db".to_string());
         db::init_pool(&db_url).await
     })
     .await
@@ -80,10 +80,11 @@ pub async fn get_current() -> Result<Data, ServerFnError> {
 
         let pool = get_db().await?;
 
-        let members: Vec<String> = sqlx::query_scalar("SELECT name FROM members ORDER BY name")
-            .fetch_all(pool)
-            .await
-            .map_err(|e| ServerFnError::new(e.to_string()))?;
+        let members: Vec<String> =
+            sqlx::query_scalar("SELECT name FROM members ORDER BY sort_order")
+                .fetch_all(pool)
+                .await
+                .map_err(|e| ServerFnError::new(e.to_string()))?;
 
         let row = sqlx::query(
             "SELECT album_id, album_name, album_artist, album_art_url, album_spotify_url,
@@ -196,6 +197,46 @@ pub async fn admin_set_current(
         .execute(&mut *tx)
         .await
         .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+        tx.commit()
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+        Ok(())
+    }
+}
+
+/// Reorder the member list. `ordered_names` must contain every existing member name
+/// in the desired display order; each name is assigned a `sort_order` equal to its index.
+#[post("/api/admin/reorder-members")]
+pub async fn admin_reorder_members(
+    admin_token: String,
+    ordered_names: Vec<String>,
+) -> Result<(), ServerFnError> {
+    ensure_admin_token(&admin_token)?;
+
+    #[cfg(not(feature = "server"))]
+    {
+        return Err(ServerFnError::new("Only available on server builds"));
+    }
+
+    #[cfg(feature = "server")]
+    {
+        let pool = get_db().await?;
+
+        let mut tx = pool
+            .begin()
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+        for (i, name) in ordered_names.iter().enumerate() {
+            sqlx::query("UPDATE members SET sort_order = ? WHERE name = ?")
+                .bind(i as i64)
+                .bind(name)
+                .execute(&mut *tx)
+                .await
+                .map_err(|e| ServerFnError::new(e.to_string()))?;
+        }
 
         tx.commit()
             .await

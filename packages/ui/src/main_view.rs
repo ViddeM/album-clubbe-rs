@@ -27,7 +27,6 @@ pub fn Main() -> Element {
         div { class: "page-wrapper",
             header {
                 h1 { "Albumklubben" }
-                a { href: "/admin", "Admin" }
             }
 
             if let Some(data) = data() {
@@ -38,6 +37,10 @@ pub fn Main() -> Element {
                 }
             } else {
                 div { "Laddar..." }
+            }
+
+            footer { class: "site-footer",
+                a { href: "/admin", "Admin" }
             }
         }
     }
