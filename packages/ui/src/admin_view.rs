@@ -1,5 +1,7 @@
+use api::admin_set_current;
 use api::admin_spotify_album_search;
 use api::api_models::SpotifyAlbumSearchItem;
+use api::get_current;
 use dioxus::prelude::*;
 use std::time::Duration;
 
@@ -12,106 +14,277 @@ async fn wait_for_debounce() {
 #[component]
 pub fn Admin() -> Element {
     let mut admin_token = use_signal(String::new);
+
+    // Spotify search
     let mut spotify_query = use_signal(String::new);
     let mut spotify_search_state =
         use_signal(|| None::<Result<Vec<SpotifyAlbumSearchItem>, String>>);
     let mut spotify_search_request_id = use_signal(|| 0_u64);
+
+    // Form state
+    let mut selected_album = use_signal(|| None::<SpotifyAlbumSearchItem>);
+    let mut picker = use_signal(String::new);
+    let mut meeting_date = use_signal(String::new);
+    let mut meeting_time_val = use_signal(String::new);
+    let mut meeting_location = use_signal(String::new);
+
+    // Members + submit feedback
+    let mut members = use_signal(Vec::<String>::new);
+    let mut submit_state = use_signal(|| None::<Result<(), String>>);
+
+    // Load members on mount via the info endpoint.
+    use_future(move || async move {
+        if let Ok(data) = get_current().await {
+            members.set(data.members.iter().map(|m| m.to_string()).collect());
+        }
+    });
 
     rsx! {
         document::Link { rel: "stylesheet", href: ADMIN_SCSS }
         div { class: "admin-page-wrapper",
             header {
                 h1 { "Admin" }
-                p { "Ange admin-token för att köra skyddade endpoints." }
+                p { "Hantera nuvarande album, möte och väljare." }
                 a { href: "/", "Tillbaka till startsidan" }
             }
 
-            div { class: "card admin-search",
-                h2 { "Spotify albumsök" }
-
+            // ── Token ───────────────────────────────────────────────────────
+            div { class: "card admin-section",
+                label { class: "admin-label", r#for: "admin-token", "Admin-token" }
                 input {
+                    id: "admin-token",
                     r#type: "password",
                     placeholder: "ADMIN_TOKEN",
                     value: "{admin_token}",
-                    oninput: move |event| admin_token.set(event.value()),
+                    oninput: move |e| admin_token.set(e.value()),
                 }
+            }
 
-                input {
-                    r#type: "text",
-                    placeholder: "Sök album...",
-                    value: "{spotify_query}",
-                    oninput: move |event| {
-                        let query = event.value();
-                        spotify_query.set(query.clone());
+            // ── Album search ─────────────────────────────────────────────────
+            div { class: "card admin-section",
+                h2 { "Välj album" }
 
-                        spotify_search_request_id += 1;
-                        let current_request_id = spotify_search_request_id();
-
-                        if query.trim().is_empty() {
-                            spotify_search_state.set(Some(Ok(Vec::new())));
-                            return;
+                if let Some(album) = selected_album() {
+                    div { class: "album-result-card selected-album-card",
+                        if let Some(ref image_url) = album.image_url {
+                            img {
+                                class: "album-result-thumb",
+                                src: "{image_url}",
+                                alt: "{album.name}",
+                            }
                         }
-
-                        let token = admin_token();
-                        if token.trim().is_empty() {
-                            spotify_search_state.set(Some(Err("Ange admin-token först".to_string())));
-                            return;
+                        div { class: "album-result-info",
+                            p { class: "album-result-name", "{album.name}" }
+                            p { class: "album-result-artists", "{album.artists}" }
+                            span { class: "admin-badge", "Valt" }
                         }
+                        button {
+                            class: "admin-button-ghost",
+                            onclick: move |_| selected_album.set(None),
+                            "Ändra"
+                        }
+                    }
+                } else {
+                    input {
+                        r#type: "text",
+                        placeholder: "Sök album...",
+                        value: "{spotify_query}",
+                        oninput: move |event| {
+                            let query = event.value();
+                            spotify_query.set(query.clone());
 
-                        spawn(async move {
-                            wait_for_debounce().await;
+                            spotify_search_request_id += 1;
+                            let current_request_id = spotify_search_request_id();
 
-                            if spotify_search_request_id() != current_request_id {
+                            if query.trim().is_empty() {
+                                spotify_search_state.set(Some(Ok(Vec::new())));
                                 return;
                             }
 
-                            let result = admin_spotify_album_search(token, query)
-                                .await
-                                .map_err(|err| err.to_string());
-
-                            if spotify_search_request_id() != current_request_id {
+                            let token = admin_token();
+                            if token.trim().is_empty() {
+                                spotify_search_state.set(Some(Err("Ange admin-token först".to_string())));
                                 return;
                             }
 
-                            spotify_search_state.set(Some(result));
-                        });
-                    },
-                }
+                            spawn(async move {
+                                wait_for_debounce().await;
 
-                if let Some(result) = spotify_search_state() {
-                    if let Ok(albums) = result {
-                        if !albums.is_empty() {
-                            div { class: "album-search-results",
-                                for album in albums {
-                                    div {
-                                        class: "card album-result-card",
-                                        key: "{album.id}",
-                                        if let Some(image_url) = album.image_url {
-                                            img {
-                                                class: "album-result-thumb",
-                                                src: "{image_url}",
-                                                alt: "{album.name}",
+                                if spotify_search_request_id() != current_request_id {
+                                    return;
+                                }
+
+                                let result = admin_spotify_album_search(token, query)
+                                    .await
+                                    .map_err(|err| err.to_string());
+
+                                if spotify_search_request_id() != current_request_id {
+                                    return;
+                                }
+
+                                spotify_search_state.set(Some(result));
+                            });
+                        },
+                    }
+
+                    if let Some(state) = spotify_search_state() {
+                        if let Ok(albums) = state {
+                            if !albums.is_empty() {
+                                div { class: "album-search-results",
+                                    for album in albums {
+                                        div {
+                                            class: "album-result-card",
+                                            key: "{album.id}",
+                                            if let Some(ref image_url) = album.image_url {
+                                                img {
+                                                    class: "album-result-thumb",
+                                                    src: "{image_url}",
+                                                    alt: "{album.name}",
+                                                }
                                             }
-                                        }
-                                        div { class: "album-result-info",
-                                            p { class: "album-result-name", "{album.name}" }
-                                            p { class: "album-result-artists", "{album.artists}" }
-                                            a {
-                                                class: "admin-spotify-link",
-                                                href: "{album.spotify_url}",
-                                                target: "_blank",
-                                                rel: "noopener noreferrer",
-                                                "Öppna i Spotify"
+                                            div { class: "album-result-info",
+                                                p { class: "album-result-name", "{album.name}" }
+                                                p { class: "album-result-artists",
+                                                    "{album.artists}"
+                                                }
+                                            }
+                                            button {
+                                                class: "admin-button",
+                                                onclick: {
+                                                    let album = album.clone();
+                                                    move |_| {
+                                                        selected_album.set(Some(album.clone()));
+                                                        spotify_search_state.set(None);
+                                                        spotify_query.set(String::new());
+                                                    }
+                                                },
+                                                "Välj"
                                             }
                                         }
                                     }
                                 }
+                            } else if !spotify_query().is_empty() {
+                                p { "Inga träffar" }
                             }
-                        } else if !spotify_query().is_empty() {
-                            p { "Inga träffar" }
+                        } else if let Err(err) = state {
+                            p { class: "admin-error", "Fel: {err}" }
                         }
+                    }
+                }
+            }
+
+            // ── Meeting details ──────────────────────────────────────────────
+            div { class: "card admin-section",
+                h2 { "Mötesinformation" }
+
+                div { class: "admin-field-group",
+                    div { class: "admin-field",
+                        label { class: "admin-label", r#for: "meeting-date", "Datum" }
+                        input {
+                            id: "meeting-date",
+                            r#type: "date",
+                            value: "{meeting_date}",
+                            oninput: move |e| {
+                                let val = e.value();
+                                if val.is_empty() {
+                                    meeting_time_val.set(String::new());
+                                }
+                                meeting_date.set(val);
+                            },
+                        }
+                    }
+                    div { class: "admin-field",
+                        label { class: "admin-label", r#for: "meeting-time", "Tid" }
+                        input {
+                            id: "meeting-time",
+                            r#type: "time",
+                            lang: "sv",
+                            disabled: meeting_date().is_empty(),
+                            value: "{meeting_time_val}",
+                            oninput: move |e| meeting_time_val.set(e.value()),
+                        }
+                    }
+                    div { class: "admin-field",
+                        label { class: "admin-label", r#for: "meeting-location", "Plats" }
+                        input {
+                            id: "meeting-location",
+                            r#type: "text",
+                            placeholder: "t.ex. Discord",
+                            value: "{meeting_location}",
+                            oninput: move |e| meeting_location.set(e.value()),
+                        }
+                    }
+                }
+            }
+
+            // ── Picker ───────────────────────────────────────────────────────
+            div { class: "card admin-section",
+                h2 { "Väljare" }
+                select {
+                    value: "{picker}",
+                    onchange: move |e| picker.set(e.value()),
+                    option {
+                        value: "",
+                        disabled: true,
+                        selected: picker().is_empty(),
+                        "Välj person..."
+                    }
+                    for member in members() {
+                        option { value: "{member}", selected: picker() == member, "{member}" }
+                    }
+                }
+            }
+
+            // ── Submit ───────────────────────────────────────────────────────
+            div { class: "card admin-section admin-submit-section",
+                button {
+                    class: "admin-button admin-button-submit",
+                    disabled: selected_album().is_none() || picker().is_empty(),
+                    onclick: move |_| {
+                        let token = admin_token();
+                        let Some(album) = selected_album() else {
+                            return;
+                        };
+                        let picker_val = picker();
+                        if picker_val.is_empty() {
+                            return;
+                        }
+
+                        let opt_str = |s: String| -> Option<String> {
+                            if s.trim().is_empty() { None } else { Some(s) }
+                        };
+                        let date = opt_str(meeting_date());
+                        let time = opt_str(meeting_time_val());
+                        let location = opt_str(meeting_location());
+                        let art_url = album.image_url.unwrap_or_default();
+
+                        submit_state.set(None);
+                        spawn(async move {
+                            let result = admin_set_current(
+                                    token,
+                                    album.id,
+                                    album.name,
+                                    album.artists,
+                                    art_url,
+                                    album.spotify_url,
+                                    picker_val,
+                                    date,
+                                    time,
+                                    location,
+                                )
+                                .await
+                                .map_err(|e| e.to_string());
+                            submit_state.set(Some(result));
+                        });
+                    },
+                    "Spara"
+                }
+
+                if let Some(result) = submit_state() {
+                    if result.is_ok() {
+                        p { class: "admin-success", "✓ Sparat!" }
                     } else if let Err(err) = result {
-                        p { "Fel: {err}" }
+                        p { class: "admin-error", "Fel: {err}" }
                     }
                 }
             }

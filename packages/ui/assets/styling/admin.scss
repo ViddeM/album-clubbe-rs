@@ -1,8 +1,12 @@
 @import "./theme.scss";
 
+// Admin page is self-contained and does not load main.scss.
+
+// ── Page wrapper ─────────────────────────────────────────────────────────────────────────────
+
 .admin-page-wrapper {
     margin-inline: auto;
-    max-width: 72rem;
+    max-width: 48rem;
     padding-block: calc($spacing * 5);
     padding-inline: calc($spacing * 3);
 
@@ -10,70 +14,215 @@
         padding-block: calc($spacing * 8);
         padding-inline: calc($spacing * 4);
     }
+
+    > * + * {
+        margin-top: calc($spacing * 6);
+    }
 }
 
-.admin-spotify-link {
+// ── Card sections ─────────────────────────────────────────────────────────────────────────────
+
+.admin-section {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 5);
+}
+
+// ── Form inputs ────────────────────────────────────────────────────────────────────────────────
+
+input,
+select {
+    background-color: color-mix(in oklab, $color-white 10%, transparent);
+    color: $color-white;
+    border: 1px solid color-mix(in oklab, $color-white 25%, transparent);
+    border-radius: $radius;
+    padding: calc($spacing * 3) calc($spacing * 4);
+    font-size: $font-size-small;
+    line-height: $line-height-small;
+    width: 100%;
+    outline: none;
+
+    &:focus {
+        border-color: $color-purple-400;
+        box-shadow: 0 0 0 2px color-mix(in oklab, $color-purple-400 30%, transparent);
+    }
+
+    &::placeholder {
+        color: $color-purple-300;
+        opacity: 0.7;
+    }
+
+    option {
+        background-color: $color-slate-900;
+        color: $color-white;
+    }
+}
+
+.admin-label {
+    font-size: $font-size-small;
+    line-height: $line-height-small;
+    color: $color-purple-200;
+    font-weight: $font-weight-semibold;
+}
+
+.admin-hint {
+    font-size: $font-size-small;
+    line-height: $line-height-small;
+    color: $color-purple-300;
+    margin-top: calc($spacing * -2);
+}
+
+// ── Meeting field group ───────────────────────────────────────────────────────────────────────────
+
+.admin-field-group {
+    display: grid;
+    gap: calc($spacing * 4);
+    grid-template-columns: 1fr;
+
+    @media (width >= $medium-breakpoint) {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.admin-field {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 2);
+}
+
+// ── Buttons ────────────────────────────────────────────────────────────────────────────────────
+
+.admin-button {
     display: inline-flex;
     align-items: center;
-    background-color: $color-green-600;
+    justify-content: center;
+    background-color: $color-purple-600;
     color: $color-white;
-    padding-inline: calc($spacing * 6);
-    padding-block: calc($spacing * 3);
-    border-radius: 9999px;
-    font-weight: 600;
+    padding-inline: calc($spacing * 5);
+    padding-block: calc($spacing * 2);
+    border-radius: $radius;
+    font-weight: $font-weight-semibold;
+    font-size: $font-size-small;
+    line-height: $line-height-small;
+    border: none;
+    cursor: pointer;
     width: fit-content;
 
-    transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke;
+    transition-property: background-color, opacity;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 150ms;
 
     &:hover {
-        background-color: $color-green-700;
+        background-color: color-mix(in oklab, $color-purple-600 80%, $color-white);
+    }
+
+    &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
     }
 }
 
-.admin-search {
-    display: flex;
-    flex-direction: column;
-    gap: calc($spacing * 6);
+.admin-button-ghost {
+    @extend .admin-button;
+    background-color: transparent;
+    border: 1px solid color-mix(in oklab, $color-white 25%, transparent);
+
+    &:hover {
+        background-color: color-mix(in oklab, $color-white 8%, transparent);
+    }
 }
+
+.admin-button-submit {
+    width: 100%;
+    padding-block: calc($spacing * 3);
+    font-size: 1rem;
+}
+
+// ── Album search results ─────────────────────────────────────────────────────────────────────────
 
 .album-search-results {
     display: flex;
     flex-direction: column;
-    gap: calc($spacing * 4);
+    gap: calc($spacing * 3);
+    max-height: calc($spacing * 80);
+    overflow-y: auto;
 }
 
 .album-result-card {
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: calc($spacing * 5);
-    padding: calc($spacing * 4);
+    gap: calc($spacing * 4);
+    padding: calc($spacing * 3);
+    background-color: color-mix(in oklab, $color-white 6%, transparent);
+    border: 1px solid color-mix(in oklab, $color-white 12%, transparent);
+    border-radius: $radius;
+}
+
+.selected-album-card {
+    border-color: $color-purple-400;
+    background-color: color-mix(in oklab, $color-purple-600 20%, transparent);
 }
 
 .album-result-thumb {
-    width: calc($spacing * 20);
-    height: calc($spacing * 20);
+    width: calc($spacing * 16);
+    height: calc($spacing * 16);
     object-fit: cover;
-    border-radius: $radius;
+    border-radius: calc($radius / 2);
     flex-shrink: 0;
 }
 
 .album-result-info {
     display: flex;
     flex-direction: column;
-    gap: calc($spacing * 2);
+    gap: $spacing;
     flex: 1;
+    min-width: 0;
 }
 
 .album-result-name {
     font-weight: $font-weight-semibold;
     color: $color-white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .album-result-artists {
     color: $color-purple-200;
     font-size: $font-size-small;
     line-height: $line-height-small;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-badge {
+    display: inline-block;
+    background-color: $color-purple-600;
+    color: $color-white;
+    font-size: $font-size-xs;
+    line-height: $line-height-xs;
+    padding-inline: calc($spacing * 2);
+    padding-block: $spacing;
+    border-radius: 9999px;
+    font-weight: $font-weight-semibold;
+    width: fit-content;
+}
+
+// ── Submit section ───────────────────────────────────────────────────────────────────────────────
+
+.admin-submit-section {
+    gap: calc($spacing * 4);
+}
+
+.admin-success {
+    color: $color-green-400;
+    font-weight: $font-weight-semibold;
+    font-size: $font-size-small;
+}
+
+.admin-error {
+    color: rgb(248, 113, 113);
+    font-size: $font-size-small;
 }

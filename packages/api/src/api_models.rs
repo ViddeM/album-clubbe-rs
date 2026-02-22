@@ -6,9 +6,9 @@ pub type Name = Arc<str>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Data {
-    pub current_album: Album,
+    pub current_album: Option<Album>,
     pub next_meeting: Option<Meeting>,
-    pub current_person: Name,
+    pub current_person: Option<Name>,
     pub members: Vec<Name>,
 }
 

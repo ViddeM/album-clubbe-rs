@@ -1,4 +1,5 @@
 use api::api_models::{Album, Data, Meeting, Name};
+
 use api::get_current;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::fa_brands_icons::FaSpotify;
@@ -53,9 +54,13 @@ fn RenderData(data: ReadSignal<Data>) -> Element {
                         h2 { class: "current-album-heading-text", "Nuvarande album" }
                     }
 
-                    CurrentAlbumView {
-                        album: data().current_album,
-                        picked_by: data().current_person,
+                    if let Some(album) = data().current_album {
+                        CurrentAlbumView { album, picked_by: data().current_person }
+                    } else {
+                        div { class: "no-album-message",
+                            p { "Inget album är valt just nu." }
+                            p { "Gå till admin-sidan för att välja ett." }
+                        }
                     }
                 }
             }
@@ -77,31 +82,33 @@ fn RenderData(data: ReadSignal<Data>) -> Element {
 }
 
 #[component]
-fn CurrentAlbumView(album: ReadSignal<Album>, picked_by: ReadSignal<Name>) -> Element {
+fn CurrentAlbumView(album: Album, picked_by: Option<Name>) -> Element {
     rsx! {
         div { class: "current-album-container gap-6",
             //  Album art
             div { class: "album-art-container",
                 img {
-                    src: "{album().album_art}",
-                    alt: "{album().name} album cover",
+                    src: "{album.album_art}",
+                    alt: "{album.name} album cover",
                     class: "album-art",
                 }
             }
 
             //Album Info
             div { class: "album-info-container",
-                h3 { class: "album-name", "{album().name}" }
-                p { class: "album-artist", "{album().artist}" }
-                p { class: "album-picked-by",
-                    "Vald av "
-                    span { "{picked_by()}" }
+                h3 { class: "album-name", "{album.name}" }
+                p { class: "album-artist", "{album.artist}" }
+                if let Some(picker) = picked_by {
+                    p { class: "album-picked-by",
+                        "Vald av "
+                        span { "{picker}" }
+                    }
                 }
 
                 // Spotify link
                 // TODO: Check if there is a better dioxus way to do this.
                 a {
-                    href: "{album().spotify_url}",
+                    href: "{album.spotify_url}",
                     target: "_blank",
                     rel: "noopener noreferrer",
                     class: "spotify-link gap-2",
@@ -167,31 +174,32 @@ fn NextMeeting(next_meeting: Option<Meeting>) -> Element {
 }
 
 #[component]
-fn UpcomingRotation(current_person: ReadSignal<Name>, members: ReadSignal<Vec<Name>>) -> Element {
-    let num_members = use_memo(move || members().len() as i64);
+fn UpcomingRotation(current_person: Option<Name>, members: Vec<Name>) -> Element {
+    let num_members = members.len() as i64;
 
-    let ordered_members = use_memo(move || {
-        let (curr_index, _) = members()
+    let ordered_members = {
+        let curr_index = current_person
+            .as_ref()
+            .and_then(|cp| members.iter().position(|name| name == cp))
+            .unwrap_or(0) as i64;
+
+        let mut ordered = members
             .iter()
             .enumerate()
-            .find(|&(_, name)| name == &current_person())
-            .expect("Current person to be in members list");
-        let curr_index = curr_index as i64;
-
-        let mut members = members()
-            .into_iter()
-            .enumerate()
-            .map(|(i, n)| (i as i64, n))
-            .map(|(i, n)| (((i - curr_index + num_members()) % num_members()), n))
+            .map(|(i, n)| {
+                (
+                    ((i as i64 - curr_index + num_members) % num_members),
+                    n.clone(),
+                )
+            })
             .collect::<Vec<_>>();
 
-        members.sort_by(|(a, _), (b, _)| a.cmp(b));
-
-        members
+        ordered.sort_by_key(|(order, _)| *order);
+        ordered
             .into_iter()
             .map(|(_, name)| name)
             .collect::<Vec<_>>()
-    });
+    };
 
     rsx! {
         div { class: "card full-width",
@@ -201,7 +209,7 @@ fn UpcomingRotation(current_person: ReadSignal<Name>, members: ReadSignal<Vec<Na
             }
 
             div { class: "upcoming-grid",
-                for (i , member) in ordered_members().iter().enumerate() {
+                for (i , member) in ordered_members.iter().enumerate() {
                     div {
                         key: "{member}",
                         class: "upcoming-grid-element",
