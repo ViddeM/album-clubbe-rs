@@ -1,6 +1,8 @@
 use dioxus::prelude::*;
 
+mod admin_view;
 mod main_view;
+pub use admin_view::Admin;
 pub use main_view::Main;
 
 const GLOBAL_SCSS: Asset = asset!("/assets/styling/globals.scss");

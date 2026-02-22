@@ -26,6 +26,7 @@ pub fn Main() -> Element {
         div { class: "page-wrapper",
             header {
                 h1 { "Albumklubben" }
+                a { href: "/admin", "Admin" }
             }
 
             if let Some(data) = data() {

@@ -73,3 +73,27 @@ and serve:
 dx serve
 ```
 
+### Admin endpoints
+
+The admin view uses protected server functions that require an `ADMIN_TOKEN` on the server.
+`ADMIN_TOKEN` must be an Argon2 PHC hash string (for example, starts with `$argon2id$...`).
+Spotify search in the admin view uses Spotify OAuth2 `client_credentials` and requires
+`SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`.
+
+Generate a hash from a plain token:
+
+```bash
+cargo run -p api --features server --bin hash_admin_token -- "my-plain-admin-token"
+```
+
+Example:
+
+```bash
+export ADMIN_TOKEN='$argon2id$v=19$m=19456,t=2,p=1$...'
+export SPOTIFY_CLIENT_ID='spotify-client-id'
+export SPOTIFY_CLIENT_SECRET='spotify-client-secret'
+dx serve
+```
+
+Open `/admin`, paste the plain token in the input field, and call the protected endpoints.
+
