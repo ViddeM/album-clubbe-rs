@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 dioxus = { workspace = true, features = ["fullstack"] }
+serde = { version = "1.0.228", features = ["derive", "rc"] }
 
 [features]
 server = ["dioxus/server"]

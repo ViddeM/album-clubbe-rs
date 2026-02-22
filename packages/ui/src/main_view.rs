@@ -1,5 +1,5 @@
-use std::sync::Arc;
-
+use api::api_models::{Album, Data, Meeting, Name};
+use api::get_current;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::fa_brands_icons::FaSpotify;
 use dioxus_free_icons::icons::fa_regular_icons::FaClock;
@@ -8,52 +8,16 @@ use dioxus_free_icons::Icon;
 
 const MAIN_SCSS: Asset = asset!("/assets/styling/main.scss");
 
-type Name = Arc<str>;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Data {
-    current_album: Album,
-    next_meeting: Option<Meeting>,
-    current_person: Name,
-    members: Vec<Name>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Album {
-    name: String,
-    artist: String,
-    album_art: String,
-    spotify_url: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Meeting {
-    date: String,
-    time: Option<String>,
-    location: Option<String>,
-}
-
 #[component]
 pub fn Main() -> Element {
-    let data = use_memo(move || Data {
-        current_album: Album {
-            name: "Vapen & ammunition".into(),
-            album_art: "https://i.scdn.co/image/ab67616d0000b27338195e65555be2b7f9324e1c".into(),
-            spotify_url: "https://open.spotify.com/album/2DGzTm2R2v3G0IjnxXtP3Y".into(),
-            artist: "Kent".into(),
-        },
-        next_meeting: Some(Meeting {
-            date: "Söndag 22/2".into(),
-            time: Some("TBD".into()),
-            location: Some("Discord".into()),
-        }),
-        current_person: "Nox".into(),
-        members: vec![
-            "Swexbe", "Nox", "Karro", "Vidde", "Stasia", "Dino", "Yoda", "Carl", "Arvid",
-        ]
-        .into_iter()
-        .map(|m| m.into())
-        .collect::<Vec<_>>(),
+    let mut data = use_signal(|| None);
+
+    use_future(move || async move {
+        let current_data = get_current().await;
+        if let Err(e) = &current_data {
+            eprintln!("Error fetching data: {e}");
+        }
+        data.set(Some(current_data));
     });
 
     rsx! {
@@ -64,33 +28,48 @@ pub fn Main() -> Element {
                 h1 { "Albumklubben" }
             }
 
-            div { class: "first-row row",
-                div { class: "double-column",
-                    div { class: "card",
-                        div { class: "current-album-heading",
-                            Icon { icon: FiMusic, class: "note-icon" }
-                            h2 { class: "current-album-heading-text", "Nuvarande album" }
-                        }
-
-                        CurrentAlbumView {
-                            album: data().current_album,
-                            picked_by: data().current_person,
-                        }
-                    }
+            if let Some(data) = data() {
+                if let Ok(data) = data {
+                    RenderData { data }
+                } else {
+                    div { "Kunde inte ladda data" }
                 }
+            } else {
+                div { "Laddar..." }
+            }
+        }
+    }
+}
 
-                div {
-                    div { class: "card full-height",
-                        NextMeeting { next_meeting: data().next_meeting }
+#[component]
+fn RenderData(data: ReadSignal<Data>) -> Element {
+    rsx! {
+        div { class: "first-row row",
+            div { class: "double-column",
+                div { class: "card",
+                    div { class: "current-album-heading",
+                        Icon { icon: FiMusic, class: "note-icon" }
+                        h2 { class: "current-album-heading-text", "Nuvarande album" }
+                    }
+
+                    CurrentAlbumView {
+                        album: data().current_album,
+                        picked_by: data().current_person,
                     }
                 }
             }
 
-            div { class: "row",
-                UpcomingRotation {
-                    current_person: data().current_person,
-                    members: data().members,
+            div {
+                div { class: "card full-height",
+                    NextMeeting { next_meeting: data().next_meeting }
                 }
+            }
+        }
+
+        div { class: "row",
+            UpcomingRotation {
+                current_person: data().current_person,
+                members: data().members,
             }
         }
     }
