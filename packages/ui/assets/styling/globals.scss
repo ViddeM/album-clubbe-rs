@@ -113,7 +113,9 @@ a {
   margin-top: calc($spacing * 12);
   padding-block: calc($spacing * 6);
   border-top: 1px solid color-mix(in oklab, $color-white 15%, transparent);
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  gap: calc($spacing * 6);
 
   a {
     color: $color-purple-300;

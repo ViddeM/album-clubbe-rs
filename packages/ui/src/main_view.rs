@@ -40,6 +40,7 @@ pub fn Main() -> Element {
             }
 
             footer { class: "site-footer",
+                a { href: "/history", "Historik" }
                 a { href: "/admin", "Admin" }
             }
         }

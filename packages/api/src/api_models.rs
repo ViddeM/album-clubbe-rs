@@ -35,3 +35,17 @@ pub struct Meeting {
     pub time: Option<String>,
     pub location: Option<String>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HistoryEntry {
+    pub id: String,
+    pub album_name: String,
+    pub album_artist: String,
+    pub album_art: String,
+    pub spotify_url: String,
+    pub picker: String,
+    pub recorded_at: String,
+    pub meeting_date: Option<String>,
+    pub meeting_time: Option<String>,
+    pub meeting_location: Option<String>,
+}

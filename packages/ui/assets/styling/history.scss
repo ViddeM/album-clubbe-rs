@@ -1,0 +1,166 @@
+@import "./theme.scss";
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+.page-wrapper {
+    margin-inline: auto;
+    max-width: 72rem;
+    padding-block: calc($spacing * 5);
+    padding-inline: calc($spacing * 3);
+
+    @media (width >= $medium-breakpoint) {
+        padding-block: calc($spacing * 8);
+        padding-inline: calc($spacing * 4);
+    }
+}
+
+// ── States ────────────────────────────────────────────────────────────────────
+
+.history-loading,
+.history-empty,
+.history-error {
+    text-align: center;
+    padding-block: calc($spacing * 16);
+    color: $color-purple-300;
+    font-size: $font-size-small;
+}
+
+.history-error {
+    color: rgb(248, 113, 113);
+}
+
+// ── Grid ──────────────────────────────────────────────────────────────────────
+
+.history-grid {
+    display: grid;
+    gap: calc($spacing * 6);
+    grid-template-columns: 1fr;
+
+    @media (width >= $medium-breakpoint) {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    @media (width >= 72rem) {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+// ── Card ──────────────────────────────────────────────────────────────────────
+
+.history-card {
+    display: flex;
+    flex-direction: row;
+    gap: calc($spacing * 5);
+    padding: calc($spacing * 5) !important;
+    align-items: flex-start;
+}
+
+.history-card-art-wrapper {
+    flex-shrink: 0;
+}
+
+.history-card-art {
+    width: calc($spacing * 20);
+    height: calc($spacing * 20);
+    object-fit: cover;
+    border-radius: calc($spacing * 2);
+}
+
+.history-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 2);
+    min-width: 0;
+    flex: 1;
+}
+
+.history-card-header {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: calc($spacing * 2);
+}
+
+.history-card-titles {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 1);
+    min-width: 0;
+    flex: 1;
+}
+
+.history-card-album {
+    font-weight: $font-weight-semibold;
+    color: $color-white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: $font-size-small;
+    line-height: $line-height-small;
+}
+
+.history-card-artist {
+    color: $color-purple-200;
+    font-size: $font-size-xs;
+    line-height: $line-height-xs;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.history-card-picker {
+    color: $color-purple-300;
+    font-size: $font-size-xs;
+    line-height: $line-height-xs;
+
+    span {
+        color: $color-white;
+        font-weight: $font-weight-semibold;
+    }
+}
+
+.history-card-meeting {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 1);
+    padding-top: calc($spacing * 1);
+    border-top: 1px solid color-mix(in oklab, $color-white 12%, transparent);
+}
+
+.history-card-meeting-row {
+    display: flex;
+    align-items: center;
+    gap: calc($spacing * 2);
+    color: $color-purple-200;
+    font-size: $font-size-xs;
+    line-height: $line-height-xs;
+}
+
+.history-card-meeting-icon {
+    color: $color-purple-400;
+    flex-shrink: 0;
+    width: calc($spacing * 3);
+    height: calc($spacing * 3);
+}
+
+.history-card-meeting-unset {
+    color: color-mix(in oklab, $color-purple-200 50%, transparent);
+    font-style: italic;
+}
+
+.history-spotify-link {
+    display: inline-flex;
+    align-items: center;
+    gap: calc($spacing * 1);
+    color: $color-purple-400;
+    font-size: $font-size-xs;
+    line-height: $line-height-xs;
+    font-weight: $font-weight-semibold;
+    margin-top: calc($spacing * 1);
+
+    &:hover {
+        color: $color-white;
+        text-decoration: none;
+    }
+}

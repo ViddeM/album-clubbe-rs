@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use ui::{Admin as AdminView, Main, Setup};
+use ui::{Admin as AdminView, History as HistoryView, Main, Setup};
 
 fn main() {
     #[cfg(feature = "server")]
@@ -24,6 +24,8 @@ fn main() {
 enum Route {
     #[route("/")]
     Home {},
+    #[route("/history")]
+    HistoryPage {},
     #[route("/admin")]
     Admin {},
 }
@@ -42,6 +44,13 @@ fn App() -> Element {
 fn Home() -> Element {
     rsx! {
         Main {}
+    }
+}
+
+#[component]
+fn HistoryPage() -> Element {
+    rsx! {
+        HistoryView {}
     }
 }
 

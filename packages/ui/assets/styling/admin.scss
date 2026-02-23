@@ -20,6 +20,50 @@
     }
 }
 
+// ── Tab bar ───────────────────────────────────────────────────────────────────────────────────────
+
+.admin-tab-bar {
+    display: flex;
+    flex-direction: row;
+    gap: 0;
+    background-color: color-mix(in oklab, $color-white 6%, transparent);
+    border: 1px solid color-mix(in oklab, $color-white 15%, transparent);
+    border-radius: $radius;
+    padding: calc($spacing * 1);
+}
+
+.admin-tab {
+    flex: 1;
+    padding-block: calc($spacing * 2);
+    padding-inline: calc($spacing * 4);
+    background-color: transparent;
+    color: $color-purple-300;
+    border: none;
+    border-radius: calc($radius - 2px);
+    font-size: $font-size-small;
+    line-height: $line-height-small;
+    font-weight: $font-weight-semibold;
+    cursor: pointer;
+
+    transition-property: background-color, color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+
+    &:hover {
+        color: $color-white;
+        background-color: color-mix(in oklab, $color-white 8%, transparent);
+    }
+}
+
+.admin-tab-active {
+    background-color: $color-purple-600;
+    color: $color-white;
+
+    &:hover {
+        background-color: color-mix(in oklab, $color-purple-600 80%, $color-white);
+    }
+}
+
 // ── Card sections ─────────────────────────────────────────────────────────────────────────────
 
 .admin-section {
@@ -257,6 +301,66 @@ select {
 
 .admin-submit-section {
     gap: calc($spacing * 4);
+}
+
+// ── History list ──────────────────────────────────────────────────────────────
+
+.admin-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 2);
+}
+
+.admin-history-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc($spacing * 4);
+    padding: calc($spacing * 3) calc($spacing * 4);
+    background-color: color-mix(in oklab, $color-white 6%, transparent);
+    border: 1px solid color-mix(in oklab, $color-white 12%, transparent);
+    border-radius: $radius;
+}
+
+.admin-history-info {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 1);
+    min-width: 0;
+    flex: 1;
+}
+
+.admin-history-album {
+    font-size: $font-size-small;
+    line-height: $line-height-small;
+    font-weight: $font-weight-semibold;
+    color: $color-white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-history-meta {
+    font-size: $font-size-xs;
+    line-height: $line-height-xs;
+    color: $color-purple-300;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-history-delete {
+    flex-shrink: 0;
+    padding-inline: calc($spacing * 3);
+    padding-block: calc($spacing * 2);
+    color: color-mix(in oklab, $color-white 50%, transparent);
+
+    &:hover {
+        background-color: color-mix(in oklab, rgb(248, 113, 113) 15%, transparent);
+        border-color: rgb(248, 113, 113);
+        color: rgb(248, 113, 113);
+    }
 }
 
 .admin-success {

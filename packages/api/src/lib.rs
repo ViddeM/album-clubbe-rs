@@ -3,7 +3,7 @@ use dioxus::prelude::*;
 #[cfg(feature = "server")]
 use std::sync::OnceLock;
 
-use crate::api_models::{Data, SpotifyAlbumSearchItem};
+use crate::api_models::{Data, HistoryEntry, SpotifyAlbumSearchItem};
 
 pub mod api_models;
 
@@ -139,6 +139,49 @@ pub async fn get_current() -> Result<Data, ServerFnError> {
     }
 }
 
+/// Get all past (non-current) meetings, newest first.
+#[get("/api/history")]
+pub async fn get_history() -> Result<Vec<HistoryEntry>, ServerFnError> {
+    #[cfg(not(feature = "server"))]
+    {
+        return Ok(Vec::new());
+    }
+
+    #[cfg(feature = "server")]
+    {
+        use sqlx::Row;
+
+        let pool = get_db().await?;
+
+        let rows = sqlx::query(
+            "SELECT id, album_name, album_artist, album_art_url, album_spotify_url, picker, recorded_at,
+                    meeting_date, meeting_time, meeting_location
+             FROM meetings
+             WHERE is_current = 0
+             ORDER BY recorded_at DESC",
+        )
+        .fetch_all(pool)
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+        Ok(rows
+            .into_iter()
+            .map(|row| HistoryEntry {
+                id: row.get("id"),
+                album_name: row.get("album_name"),
+                album_artist: row.get("album_artist"),
+                album_art: row.get("album_art_url"),
+                spotify_url: row.get("album_spotify_url"),
+                picker: row.get("picker"),
+                recorded_at: row.get("recorded_at"),
+                meeting_date: row.get("meeting_date"),
+                meeting_time: row.get("meeting_time"),
+                meeting_location: row.get("meeting_location"),
+            })
+            .collect())
+    }
+}
+
 /// Set the current album, meeting info and picker. Archives the previous state to history.
 #[post("/api/admin/set-current")]
 pub async fn admin_set_current(
@@ -199,6 +242,33 @@ pub async fn admin_set_current(
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 
         tx.commit()
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+        Ok(())
+    }
+}
+
+/// Delete a single historical entry by id.
+#[post("/api/admin/history/delete")]
+pub async fn admin_delete_history_entry(
+    admin_token: String,
+    id: String,
+) -> Result<(), ServerFnError> {
+    ensure_admin_token(&admin_token)?;
+
+    #[cfg(not(feature = "server"))]
+    {
+        return Err(ServerFnError::new("Only available on server builds"));
+    }
+
+    #[cfg(feature = "server")]
+    {
+        let pool = get_db().await?;
+
+        sqlx::query("DELETE FROM meetings WHERE id = ? AND is_current = 0")
+            .bind(&id)
+            .execute(pool)
             .await
             .map_err(|e| ServerFnError::new(e.to_string()))?;
 
