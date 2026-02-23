@@ -6,9 +6,11 @@ edition = "2021"
 [dependencies]
 dioxus = { workspace = true, features = ["router", "fullstack"] }
 ui = { workspace = true }
+api = { workspace = true, optional = true }
 dotenvy = { version = "0.15", optional = true }
+tracing = { version = "0.1", optional = true }
 
 [features]
 default = []
 web = ["dioxus/web"]
-server = ["dioxus/server", "ui/server", "dep:dotenvy"]
+server = ["dioxus/server", "ui/server", "dep:api", "dep:dotenvy", "dep:tracing"]

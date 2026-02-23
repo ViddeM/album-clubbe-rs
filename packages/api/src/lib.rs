@@ -25,11 +25,23 @@ async fn get_db() -> Result<&'static sqlx::SqlitePool, ServerFnError> {
     DB.get_or_try_init(|| async {
         let db_url =
             std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:database.db".to_string());
-
-        db::init_pool(&db_url).await
+        tracing::info!("Connecting to database: {db_url}");
+        let pool = db::init_pool(&db_url).await;
+        match &pool {
+            Ok(_) => tracing::info!("Database ready"),
+            Err(e) => tracing::error!("Database initialisation failed: {e}"),
+        }
+        pool
     })
     .await
     .map_err(|e| ServerFnError::new(e.to_string()))
+}
+
+/// Eagerly initialise the database pool. Call this on startup to surface errors early.
+#[cfg(feature = "server")]
+pub async fn init_db() -> Result<(), ServerFnError> {
+    get_db().await?;
+    Ok(())
 }
 
 #[allow(dead_code)]
@@ -75,6 +87,7 @@ pub async fn get_current() -> Result<Data, ServerFnError> {
 
     #[cfg(feature = "server")]
     {
+        tracing::debug!("GET /api/info");
         use sqlx::Row;
 
         let pool = get_db().await?;
@@ -141,6 +154,7 @@ pub async fn get_history() -> Result<Vec<HistoryEntry>, ServerFnError> {
 
     #[cfg(feature = "server")]
     {
+        tracing::debug!("GET /api/history");
         use sqlx::Row;
 
         let pool = get_db().await?;
@@ -156,6 +170,7 @@ pub async fn get_history() -> Result<Vec<HistoryEntry>, ServerFnError> {
         .await
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 
+        tracing::debug!("GET /api/history → {} entries", rows.len());
         Ok(rows
             .into_iter()
             .map(|row| HistoryEntry {
@@ -199,6 +214,7 @@ pub async fn admin_set_current(
     {
         use uuid::Uuid;
 
+        tracing::info!("POST /api/admin/set-current album=\"{album_name}\" picker=\"{picker}\" date=\"{meeting_date}\"");
         let pool = get_db().await?;
 
         let mut tx = pool
@@ -237,6 +253,7 @@ pub async fn admin_set_current(
             .await
             .map_err(|e| ServerFnError::new(e.to_string()))?;
 
+        tracing::info!("POST /api/admin/set-current → ok");
         Ok(())
     }
 }
@@ -256,6 +273,7 @@ pub async fn admin_delete_history_entry(
 
     #[cfg(feature = "server")]
     {
+        tracing::info!("POST /api/admin/history/delete id=\"{id}\"");
         let pool = get_db().await?;
 
         sqlx::query("DELETE FROM meetings WHERE id = ? AND is_current = 0")
@@ -264,12 +282,12 @@ pub async fn admin_delete_history_entry(
             .await
             .map_err(|e| ServerFnError::new(e.to_string()))?;
 
+        tracing::info!("POST /api/admin/history/delete id=\"{id}\" → ok");
         Ok(())
     }
 }
 
-/// Reorder the member list. `ordered_names` must contain every existing member name
-/// in the desired display order; each name is assigned a `sort_order` equal to its index.
+/// Reorder the member list.
 #[post("/api/admin/reorder-members")]
 pub async fn admin_reorder_members(
     admin_token: String,
@@ -284,6 +302,10 @@ pub async fn admin_reorder_members(
 
     #[cfg(feature = "server")]
     {
+        tracing::info!(
+            "POST /api/admin/reorder-members {} members",
+            ordered_names.len()
+        );
         let pool = get_db().await?;
 
         let mut tx = pool
@@ -304,6 +326,7 @@ pub async fn admin_reorder_members(
             .await
             .map_err(|e| ServerFnError::new(e.to_string()))?;
 
+        tracing::info!("POST /api/admin/reorder-members → ok");
         Ok(())
     }
 }
@@ -330,6 +353,7 @@ pub async fn admin_spotify_album_search(
 
     #[cfg(feature = "server")]
     {
+        tracing::debug!("POST /api/admin/spotify/search query=\"{search_term}\"");
         let spotify_client = SPOTIFY_CLIENT.get_or_init(|| tokio::sync::Mutex::new(None));
         let mut spotify_client = spotify_client.lock().await;
 
@@ -358,6 +382,7 @@ pub async fn admin_spotify_album_search(
             })
             .collect::<Vec<_>>();
 
+        tracing::debug!("POST /api/admin/spotify/search → {} results", albums.len());
         Ok(albums)
     }
 }

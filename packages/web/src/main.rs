@@ -10,6 +10,15 @@ fn main() {
 
             dotenvy::dotenv().ok();
 
+            let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
+            tracing::info!("Starting server on port {port}");
+
+            // Eagerly initialise the DB pool so startup errors surface immediately.
+            if let Err(e) = api::init_db().await {
+                tracing::error!("Database initialisation failed: {e}");
+                std::process::exit(1);
+            }
+
             Ok(axum::Router::new().serve_dioxus_application(ServeConfig::new(), App))
         });
     }

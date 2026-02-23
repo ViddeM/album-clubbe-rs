@@ -13,7 +13,10 @@ pub async fn init_pool(db_url: &str) -> Result<SqlitePool, sqlx::Error> {
 
     let pool = SqlitePoolOptions::new().connect_with(options).await?;
 
+    tracing::info!("Running database migrations");
     sqlx::migrate!().run(&pool).await?;
+    tracing::info!("Migrations complete");
+
     seed_members(&pool).await?;
 
     Ok(pool)
