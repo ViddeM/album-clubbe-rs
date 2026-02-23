@@ -45,7 +45,7 @@ pub struct HistoryEntry {
     pub spotify_url: String,
     pub picker: String,
     pub recorded_at: String,
-    pub meeting_date: Option<String>,
+    pub meeting_date: String,
     pub meeting_time: Option<String>,
     pub meeting_location: Option<String>,
 }

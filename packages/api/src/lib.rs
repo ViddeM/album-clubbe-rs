@@ -105,22 +105,15 @@ pub async fn get_current() -> Result<Data, ServerFnError> {
                 members: member_names,
             }),
             Some(row) => {
-                let meeting_date: Option<String> = row.get("meeting_date");
+                let meeting_date: String = row.get("meeting_date");
                 let meeting_time: Option<String> = row.get("meeting_time");
                 let meeting_location: Option<String> = row.get("meeting_location");
 
-                let next_meeting = if meeting_date.is_some()
-                    || meeting_time.is_some()
-                    || meeting_location.is_some()
-                {
-                    Some(crate::api_models::Meeting {
-                        date: meeting_date.unwrap_or_default(),
-                        time: meeting_time,
-                        location: meeting_location,
-                    })
-                } else {
-                    None
-                };
+                let next_meeting = Some(crate::api_models::Meeting {
+                    date: meeting_date,
+                    time: meeting_time,
+                    location: meeting_location,
+                });
 
                 Ok(Data {
                     current_album: Some(crate::api_models::Album {
@@ -138,7 +131,7 @@ pub async fn get_current() -> Result<Data, ServerFnError> {
     }
 }
 
-/// Get all past (non-current) meetings, newest first.
+/// Get all past (non-current) meetings, ordered by meeting date ascending.
 #[get("/api/history")]
 pub async fn get_history() -> Result<Vec<HistoryEntry>, ServerFnError> {
     #[cfg(not(feature = "server"))]
@@ -157,7 +150,7 @@ pub async fn get_history() -> Result<Vec<HistoryEntry>, ServerFnError> {
                     meeting_date, meeting_time, meeting_location
              FROM meetings
              WHERE is_current = 0
-             ORDER BY recorded_at DESC",
+             ORDER BY meeting_date ASC",
         )
         .fetch_all(pool)
         .await
@@ -191,7 +184,7 @@ pub async fn admin_set_current(
     album_art_url: String,
     album_spotify_url: String,
     picker: String,
-    meeting_date: Option<String>,
+    meeting_date: String,
     meeting_time: Option<String>,
     meeting_location: Option<String>,
 ) -> Result<(), ServerFnError> {

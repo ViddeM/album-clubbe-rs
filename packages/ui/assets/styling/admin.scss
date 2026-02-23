@@ -116,6 +116,17 @@ select {
     margin-top: calc($spacing * -2);
 }
 
+.required-star {
+    color: #f87171;
+    font-weight: $font-weight-semibold;
+}
+
+.admin-required-note {
+    font-size: $font-size-small;
+    line-height: $line-height-small;
+    color: $color-purple-300;
+}
+
 // ── Meeting field group ───────────────────────────────────────────────────────────────────────────
 
 .admin-field-group {
@@ -156,7 +167,7 @@ select {
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 150ms;
 
-    &:hover {
+    &:not(:disabled):hover {
         background-color: color-mix(in oklab, $color-purple-600 80%, $color-white);
     }
 

@@ -37,10 +37,23 @@ pub fn History() -> Element {
                         p { "Inga tidigare album än." }
                     }
                 },
-                Some(Ok(list)) => rsx! {
-                    div { class: "history-grid",
-                        for entry in list {
-                            HistoryCard { entry }
+                Some(Ok(list)) => {
+                    let groups = group_history_by_month(list);
+                    rsx! {
+                        div { class: "history-timeline",
+                            for (label, entries) in groups {
+                                div { class: "history-group",
+                                    div { class: "history-group-header",
+                                        h2 { class: "history-group-heading", "{label}" }
+                                        div { class: "history-group-line" }
+                                    }
+                                    div { class: "history-grid",
+                                        for entry in entries {
+                                            HistoryCard { entry }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 },
@@ -52,6 +65,42 @@ pub fn History() -> Element {
             }
         }
     }
+}
+
+fn month_label_from_date(date_str: &str) -> String {
+    let mut parts = date_str.splitn(3, '-');
+    let year = parts.next().unwrap_or("?");
+    let month = parts.next().unwrap_or("?");
+    let month_name = match month {
+        "01" => "Januari",
+        "02" => "Februari",
+        "03" => "Mars",
+        "04" => "April",
+        "05" => "Maj",
+        "06" => "Juni",
+        "07" => "Juli",
+        "08" => "Augusti",
+        "09" => "September",
+        "10" => "Oktober",
+        "11" => "November",
+        "12" => "December",
+        _ => "Okänt",
+    };
+    format!("{} {}", month_name, year)
+}
+
+fn group_history_by_month(mut entries: Vec<HistoryEntry>) -> Vec<(String, Vec<HistoryEntry>)> {
+    entries.sort_unstable_by(|a, b| b.meeting_date.cmp(&a.meeting_date));
+    let mut groups: Vec<(String, Vec<HistoryEntry>)> = Vec::new();
+    for entry in entries {
+        let label = month_label_from_date(&entry.meeting_date);
+        if groups.last().map(|(l, _)| l == &label).unwrap_or(false) {
+            groups.last_mut().unwrap().1.push(entry);
+        } else {
+            groups.push((label, vec![entry]));
+        }
+    }
+    groups
 }
 
 #[component]
@@ -85,9 +134,7 @@ fn HistoryCard(entry: HistoryEntry) -> Element {
                             icon: FiCalendar,
                             class: "history-card-meeting-icon",
                         }
-                        span { class: if entry.meeting_date.is_none() { "history-card-meeting-unset" } else { "" },
-                            {entry.meeting_date.as_deref().unwrap_or("Ej angivet")}
-                        }
+                        span { "{entry.meeting_date}" }
                     }
                     div { class: "history-card-meeting-row",
                         Icon { icon: FaClock, class: "history-card-meeting-icon" }

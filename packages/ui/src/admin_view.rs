@@ -42,6 +42,7 @@ pub fn Admin() -> Element {
 
     // Members + submit feedback
     let mut members = use_signal(Vec::<String>::new);
+    let mut original_members = use_signal(Vec::<String>::new);
     let mut submit_state = use_signal(|| None::<Result<(), String>>);
     let mut reorder_state = use_signal(|| None::<Result<(), String>>);
     let mut history = use_signal(|| None::<Result<Vec<HistoryEntry>, String>>);
@@ -49,7 +50,9 @@ pub fn Admin() -> Element {
     // Load members on mount via the info endpoint.
     use_future(move || async move {
         if let Ok(data) = get_current().await {
-            members.set(data.members.iter().map(|m| m.to_string()).collect());
+            let list: Vec<String> = data.members.iter().map(|m| m.to_string()).collect();
+            members.set(list.clone());
+            original_members.set(list);
         }
     });
 
@@ -69,7 +72,10 @@ pub fn Admin() -> Element {
 
             // ── Token ───────────────────────────────────────────────────────
             div { class: "card admin-section",
-                label { class: "admin-label", r#for: "admin-token", "Admin-token" }
+                label { class: "admin-label", r#for: "admin-token",
+                    "Admin-token"
+                    span { class: "required-star", " *" }
+                }
                 input {
                     id: "admin-token",
                     r#type: "password",
@@ -109,7 +115,10 @@ pub fn Admin() -> Element {
             if active_tab() == AdminTab::Album {
                 // ── Album search ─────────────────────────────────────────────
                 div { class: "card admin-section",
-                    h2 { "Välj album" }
+                    h2 {
+                        "Välj album"
+                        span { class: "required-star", " *" }
+                    }
 
                     if let Some(album) = selected_album() {
                         div { class: "album-result-card selected-album-card",
@@ -228,10 +237,14 @@ pub fn Admin() -> Element {
 
                     div { class: "admin-field-group",
                         div { class: "admin-field",
-                            label { class: "admin-label", r#for: "meeting-date", "Datum" }
+                            label { class: "admin-label", r#for: "meeting-date",
+                                "Datum"
+                                span { class: "required-star", " *" }
+                            }
                             input {
                                 id: "meeting-date",
                                 r#type: "date",
+                                required: true,
                                 value: "{meeting_date}",
                                 oninput: move |e| {
                                     let val = e.value();
@@ -272,7 +285,10 @@ pub fn Admin() -> Element {
 
                 // ── Picker ───────────────────────────────────────────────────
                 div { class: "card admin-section",
-                    h2 { "Väljare" }
+                    h2 {
+                        "Väljare"
+                        span { class: "required-star", " *" }
+                    }
                     select {
                         value: "{picker}",
                         onchange: move |e| picker.set(e.value()),
@@ -294,9 +310,14 @@ pub fn Admin() -> Element {
 
                 // ── Submit ───────────────────────────────────────────────────
                 div { class: "card admin-section admin-submit-section",
+                    p { class: "admin-required-note",
+                        span { class: "required-star", "*" }
+                        " Obligatoriska fält"
+                    }
                     button {
                         class: "admin-button admin-button-submit",
-                        disabled: selected_album().is_none() || picker().is_empty(),
+                        disabled: selected_album().is_none() || picker().is_empty() || meeting_date().is_empty()
+                            || admin_token().trim().is_empty(),
                         onclick: move |_| {
                             let token = admin_token();
                             let Some(album) = selected_album() else {
@@ -310,7 +331,7 @@ pub fn Admin() -> Element {
                             let opt_str = |s: String| -> Option<String> {
                                 if s.trim().is_empty() { None } else { Some(s) }
                             };
-                            let date = opt_str(meeting_date());
+                            let date = meeting_date();
                             let time = opt_str(meeting_time_val());
                             let location = opt_str(meeting_location());
                             let art_url = album.image_url.unwrap_or_default();
@@ -334,6 +355,13 @@ pub fn Admin() -> Element {
                                 if result.is_ok() {
                                     let fresh = get_history().await.map_err(|e| e.to_string());
                                     history.set(Some(fresh));
+                                    selected_album.set(None);
+                                    picker.set(String::new());
+                                    meeting_date.set(String::new());
+                                    meeting_time_val.set(String::new());
+                                    meeting_location.set(String::new());
+                                    spotify_query.set(String::new());
+                                    spotify_search_state.set(None);
                                 }
                                 submit_state.set(Some(result));
                             });
@@ -395,14 +423,18 @@ pub fn Admin() -> Element {
 
                     button {
                         class: "admin-button admin-button-submit",
+                        disabled: members() == original_members() || admin_token().trim().is_empty(),
                         onclick: move |_| {
                             let token = admin_token();
                             let ordered = members();
                             reorder_state.set(None);
                             spawn(async move {
-                                let result = admin_reorder_members(token, ordered)
+                                let result = admin_reorder_members(token, ordered.clone())
                                     .await
                                     .map_err(|e| e.to_string());
+                                if result.is_ok() {
+                                    original_members.set(ordered);
+                                }
                                 reorder_state.set(Some(result));
                             });
                         },
@@ -437,7 +469,11 @@ pub fn Admin() -> Element {
                         },
                         Some(Ok(list)) => rsx! {
                             div { class: "admin-history-list",
-                                for entry in list {
+                                for entry in {
+                                    let mut sorted = list.clone();
+                                    sorted.sort_unstable_by(|a, b| b.meeting_date.cmp(&a.meeting_date));
+                                    sorted
+                                } {
                                     div { class: "admin-history-row",
                                         div { class: "admin-history-info",
                                             span { class: "admin-history-album", "{entry.album_name}" }
@@ -446,6 +482,7 @@ pub fn Admin() -> Element {
                                         button {
                                             class: "admin-button-ghost admin-history-delete",
                                             title: "Ta bort",
+                                            disabled: admin_token().trim().is_empty(),
                                             onclick: {
                                                 let id = entry.id.clone();
                                                 move |_| {
