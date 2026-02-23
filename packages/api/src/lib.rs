@@ -23,8 +23,6 @@ const ADMIN_TOKEN_ENV: &str = "ADMIN_TOKEN";
 #[cfg(feature = "server")]
 async fn get_db() -> Result<&'static sqlx::SqlitePool, ServerFnError> {
     DB.get_or_try_init(|| async {
-        use dioxus::logger::tracing;
-
         let db_url =
             std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:database.db".to_string());
 
