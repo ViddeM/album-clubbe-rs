@@ -23,6 +23,7 @@ pub struct SpotifyAlbumSearchItem {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Album {
+    pub id: String,
     pub name: String,
     pub artist: String,
     pub album_art: String,

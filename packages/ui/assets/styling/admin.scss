@@ -374,6 +374,25 @@ select {
     }
 }
 
+.admin-edit-current-section {
+    display: flex;
+    align-items: center;
+}
+
+.admin-editing-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: calc($spacing * 4);
+
+    > span {
+        font-size: $font-size-small;
+        font-weight: $font-weight-semibold;
+        color: $color-purple-300;
+    }
+}
+
 .admin-success {
     color: $color-green-400;
     font-weight: $font-weight-semibold;

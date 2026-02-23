@@ -2,7 +2,8 @@ use api::admin_delete_history_entry;
 use api::admin_reorder_members;
 use api::admin_set_current;
 use api::admin_spotify_album_search;
-use api::api_models::{HistoryEntry, SpotifyAlbumSearchItem};
+use api::admin_update_current;
+use api::api_models::{Data, HistoryEntry, SpotifyAlbumSearchItem};
 use api::{get_current, get_history};
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::fi_icons::FiTrash2;
@@ -47,12 +48,17 @@ pub fn Admin() -> Element {
     let mut reorder_state = use_signal(|| None::<Result<(), String>>);
     let mut history = use_signal(|| None::<Result<Vec<HistoryEntry>, String>>);
 
+    // Edit-current mode
+    let mut is_editing_current = use_signal(|| false);
+    let mut current_data = use_signal(|| None::<Data>);
+
     // Load members on mount via the info endpoint.
     use_future(move || async move {
         if let Ok(data) = get_current().await {
             let list: Vec<String> = data.members.iter().map(|m| m.to_string()).collect();
             members.set(list.clone());
             original_members.set(list);
+            current_data.set(Some(data));
         }
     });
 
@@ -112,8 +118,69 @@ pub fn Admin() -> Element {
             }
 
             // ── Tab: Nytt album ─────────────────────────────────────────────
-            if active_tab() == AdminTab::Album {
-                // ── Album search ─────────────────────────────────────────────
+            if active_tab() == AdminTab::Album {                // ── Edit current banner ──────────────────────────────────────
+                if let Some(data) = current_data() {
+                    if data.current_album.is_some() {
+                        div { class: "card admin-section admin-edit-current-section",
+                            if is_editing_current() {
+                                div { class: "admin-editing-banner",
+                                    span { "Redigerar nuvarande album" }
+                                    button {
+                                        class: "admin-button-ghost",
+                                        onclick: move |_| {
+                                            is_editing_current.set(false);
+                                            selected_album.set(None);
+                                            picker.set(String::new());
+                                            meeting_date.set(String::new());
+                                            meeting_time_val.set(String::new());
+                                            meeting_location.set(String::new());
+                                            spotify_query.set(String::new());
+                                            spotify_search_state.set(None);
+                                            submit_state.set(None);
+                                        },
+                                        "Avbryt"
+                                    }
+                                }
+                            } else {
+                                button {
+                                    class: "admin-button",
+                                    onclick: move |_| {
+                                        if let Some(data) = current_data() {
+                                            if let Some(album) = &data.current_album {
+                                                selected_album.set(Some(SpotifyAlbumSearchItem {
+                                                    id: album.id.clone(),
+                                                    name: album.name.clone(),
+                                                    artists: album.artist.clone(),
+                                                    image_url: if album.album_art.is_empty() {
+                                                        None
+                                                    } else {
+                                                        Some(album.album_art.clone())
+                                                    },
+                                                    spotify_url: album.spotify_url.clone(),
+                                                }));
+                                            }
+                                            if let Some(person) = &data.current_person {
+                                                picker.set(person.to_string());
+                                            }
+                                            if let Some(meeting) = &data.next_meeting {
+                                                meeting_date.set(meeting.date.clone());
+                                                meeting_time_val
+                                                    .set(meeting.time.clone().unwrap_or_default());
+                                                meeting_location
+                                                    .set(
+                                                        meeting.location.clone().unwrap_or_default(),
+                                                    );
+                                            }
+                                        }
+                                        is_editing_current.set(true);
+                                        submit_state.set(None);
+                                    },
+                                    "Redigera nuvarande"
+                                }
+                            }
+                        }
+                    }
+                }
                 div { class: "card admin-section",
                     h2 {
                         "Välj album"
@@ -335,26 +402,50 @@ pub fn Admin() -> Element {
                             let time = opt_str(meeting_time_val());
                             let location = opt_str(meeting_location());
                             let art_url = album.image_url.unwrap_or_default();
+                            let editing = is_editing_current();
 
                             submit_state.set(None);
                             spawn(async move {
-                                let result = admin_set_current(
-                                        token,
-                                        album.id,
-                                        album.name,
-                                        album.artists,
-                                        art_url,
-                                        album.spotify_url,
-                                        picker_val,
-                                        date,
-                                        time,
-                                        location,
-                                    )
-                                    .await
-                                    .map_err(|e| e.to_string());
+                                let result = if editing {
+                                    admin_update_current(
+                                            token,
+                                            album.id,
+                                            album.name,
+                                            album.artists,
+                                            art_url,
+                                            album.spotify_url,
+                                            picker_val,
+                                            date,
+                                            time,
+                                            location,
+                                        )
+                                        .await
+                                        .map_err(|e| e.to_string())
+                                } else {
+                                    admin_set_current(
+                                            token,
+                                            album.id,
+                                            album.name,
+                                            album.artists,
+                                            art_url,
+                                            album.spotify_url,
+                                            picker_val,
+                                            date,
+                                            time,
+                                            location,
+                                        )
+                                        .await
+                                        .map_err(|e| e.to_string())
+                                };
                                 if result.is_ok() {
-                                    let fresh = get_history().await.map_err(|e| e.to_string());
-                                    history.set(Some(fresh));
+                                    if let Ok(fresh_data) = get_current().await {
+                                        current_data.set(Some(fresh_data));
+                                    }
+                                    if !editing {
+                                        let fresh = get_history().await.map_err(|e| e.to_string());
+                                        history.set(Some(fresh));
+                                    }
+                                    is_editing_current.set(false);
                                     selected_album.set(None);
                                     picker.set(String::new());
                                     meeting_date.set(String::new());
@@ -366,7 +457,7 @@ pub fn Admin() -> Element {
                                 submit_state.set(Some(result));
                             });
                         },
-                        "Spara"
+                        if is_editing_current() { "Uppdatera" } else { "Spara" }
                     }
 
                     if let Some(result) = submit_state() {

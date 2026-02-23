@@ -130,6 +130,7 @@ pub async fn get_current() -> Result<Data, ServerFnError> {
 
                 Ok(Data {
                     current_album: Some(crate::api_models::Album {
+                        id: row.get("album_id"),
                         name: row.get("album_name"),
                         artist: row.get("album_artist"),
                         album_art: row.get("album_art_url"),
@@ -254,6 +255,57 @@ pub async fn admin_set_current(
             .map_err(|e| ServerFnError::new(e.to_string()))?;
 
         tracing::info!("POST /api/admin/set-current → ok");
+        Ok(())
+    }
+}
+
+/// Update the current meeting / album in-place (without archiving to history).
+#[post("/api/admin/update-current")]
+pub async fn admin_update_current(
+    admin_token: String,
+    album_id: String,
+    album_name: String,
+    album_artist: String,
+    album_art_url: String,
+    album_spotify_url: String,
+    picker: String,
+    meeting_date: String,
+    meeting_time: Option<String>,
+    meeting_location: Option<String>,
+) -> Result<(), ServerFnError> {
+    ensure_admin_token(&admin_token)?;
+
+    #[cfg(not(feature = "server"))]
+    {
+        return Err(ServerFnError::new("Only available on server builds"));
+    }
+
+    #[cfg(feature = "server")]
+    {
+        tracing::info!("POST /api/admin/update-current album=\"{album_name}\" picker=\"{picker}\" date=\"{meeting_date}\"");
+        let pool = get_db().await?;
+
+        sqlx::query(
+            "UPDATE meetings
+             SET album_id = ?, album_name = ?, album_artist = ?, album_art_url = ?,
+                 album_spotify_url = ?, picker = ?, meeting_date = ?, meeting_time = ?,
+                 meeting_location = ?
+             WHERE is_current = 1",
+        )
+        .bind(album_id)
+        .bind(album_name)
+        .bind(album_artist)
+        .bind(album_art_url)
+        .bind(album_spotify_url)
+        .bind(picker)
+        .bind(meeting_date)
+        .bind(meeting_time)
+        .bind(meeting_location)
+        .execute(pool)
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+        tracing::info!("POST /api/admin/update-current → ok");
         Ok(())
     }
 }
