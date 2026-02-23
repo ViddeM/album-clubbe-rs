@@ -9,7 +9,7 @@ serde = { version = "1.0.228", features = ["derive", "rc"] }
 argon2 = { version = "0.5", optional = true }
 rand = { version = "0.8", optional = true }
 spotify = { workspace = true, optional = true }
-sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio"], optional = true }
+sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "migrate"], optional = true }
 tokio = { version = "1", features = ["sync", "rt"], optional = true }
 uuid = { version = "1", features = ["v4"], optional = true }
 

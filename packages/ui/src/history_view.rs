@@ -41,7 +41,7 @@ pub fn History() -> Element {
                     let groups = group_history_by_month(list);
                     rsx! {
                         div { class: "history-timeline",
-                            for (label, entries) in groups {
+                            for (label , entries) in groups {
                                 div { class: "history-group",
                                     div { class: "history-group-header",
                                         h2 { class: "history-group-heading", "{label}" }
@@ -56,7 +56,7 @@ pub fn History() -> Element {
                             }
                         }
                     }
-                },
+                }
             }
 
             footer { class: "site-footer",

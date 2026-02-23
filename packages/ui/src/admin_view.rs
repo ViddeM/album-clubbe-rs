@@ -473,7 +473,8 @@ pub fn Admin() -> Element {
                                     let mut sorted = list.clone();
                                     sorted.sort_unstable_by(|a, b| b.meeting_date.cmp(&a.meeting_date));
                                     sorted
-                                } {
+                                }
+                                {
                                     div { class: "admin-history-row",
                                         div { class: "admin-history-info",
                                             span { class: "admin-history-album", "{entry.album_name}" }
