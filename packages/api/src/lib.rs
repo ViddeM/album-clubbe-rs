@@ -23,8 +23,11 @@ const ADMIN_TOKEN_ENV: &str = "ADMIN_TOKEN";
 #[cfg(feature = "server")]
 async fn get_db() -> Result<&'static sqlx::SqlitePool, ServerFnError> {
     DB.get_or_try_init(|| async {
+        use dioxus::logger::tracing;
+
         let db_url =
             std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:database.db".to_string());
+
         db::init_pool(&db_url).await
     })
     .await
@@ -47,8 +50,6 @@ fn ensure_admin_token(admin_token: &str) -> Result<(), ServerFnError> {
 
         let expected_hash = std::env::var(ADMIN_TOKEN_ENV)
             .map_err(|_| ServerFnError::new("ADMIN_TOKEN is not configured on the server"))?;
-
-        println!("STORED HASH {expected_hash}");
 
         let parsed_hash = PasswordHash::new(&expected_hash)
             .map_err(|_| ServerFnError::new("ADMIN_TOKEN must be a valid Argon2 PHC hash"))?;
