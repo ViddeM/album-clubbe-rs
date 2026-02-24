@@ -10,6 +10,7 @@ pub struct AlbumTrackItem {
     pub name: String,
     pub track_number: u32,
     pub duration_ms: Option<u64>,
+    pub spotify_url: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -102,7 +103,9 @@ impl SpotifyClient {
             .ok_or_else(|| SpotifyError("Spotify access token is not available".to_string()))?;
 
         self.http_client
-            .get(format!("https://api.spotify.com/v1/albums/{album_id}/tracks"))
+            .get(format!(
+                "https://api.spotify.com/v1/albums/{album_id}/tracks"
+            ))
             .query(&[("limit", "50")])
             .bearer_auth(access_token)
             .send()
@@ -126,6 +129,7 @@ impl SpotifyClient {
                 name: t.name,
                 track_number: t.track_number,
                 duration_ms: Some(t.duration_ms),
+                spotify_url: t.external_urls.map(|u| u.spotify),
             })
             .collect())
     }
@@ -283,6 +287,7 @@ struct SpotifyTrack {
     name: String,
     track_number: u32,
     duration_ms: u64,
+    external_urls: Option<SpotifyExternalUrls>,
 }
 
 #[derive(Debug, Deserialize)]

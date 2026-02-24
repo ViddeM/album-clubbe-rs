@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::SiteFooter;
 use api::api_models::{AlbumTrack, Data, Reviews};
 use api::{
     get_album_tracks, get_current, get_reviews, submit_album_review, submit_track_review,
@@ -9,7 +10,6 @@ use dioxus::prelude::*;
 use dioxus_free_icons::icons::fa_brands_icons::FaSpotify;
 use dioxus_free_icons::icons::fi_icons::FiExternalLink;
 use dioxus_free_icons::Icon;
-use crate::SiteFooter;
 
 const REVIEW_SCSS: Asset = asset!("/assets/styling/review.scss");
 
@@ -72,7 +72,7 @@ pub fn Review() -> Element {
 
         div { class: "page-wrapper",
             header {
-                h1 { "Granska" }
+                h1 { "Recensera" }
             }
 
             match page_data() {
@@ -86,7 +86,7 @@ pub fn Review() -> Element {
                     let Some(album) = data.current_album.clone() else {
                         return rsx! {
                             div { class: "review-empty card",
-                                p { "Inget album att granska just nu." }
+                                p { "Inget album att recensera just nu." }
                                 p {
                                     a { href: "/", "Gå till startsidan" }
                                 }
@@ -138,7 +138,7 @@ pub fn Review() -> Element {
                         // ── Login ───────────────────────────────────────────
                         if logged_in_as().is_none() {
                             div { class: "card review-login-card",
-                                h2 { "Logga in för att granska" }
+                                h2 { "Logga in för att recensera" }
                                 p { class: "review-login-hint", "Välj ditt namn och ange ditt lösenord." }
 
                                 div { class: "review-login-fields",
@@ -276,43 +276,28 @@ pub fn Review() -> Element {
                                             on_change: move |s| {
                                                 album_rating.set(s);
                                                 album_submit.set(None);
+                                                let name = logged_in_as().unwrap_or_default();
+                                                let pw = password();
+                                                let mid = current_meeting_id();
+                                                spawn(async move {
+                                                    let result = submit_album_review(name, pw, mid.clone(), s)
+                                                        .await
+                                                        .map_err(|e| e.to_string());
+                                                    if result.is_ok() {
+                                                        if let Ok(fresh) = get_reviews(mid).await {
+                                                            reviews.set(Some(Ok(fresh)));
+                                                        }
+                                                    } else {
+                                                        album_submit.set(Some(result));
+                                                    }
+                                                });
                                             },
                                         }
                                         span { class: "review-score-text", "{album_rating()} / 10" }
                                     }
 
-                                    button {
-                                        class: "review-button",
-                                        onclick: move |_| {
-                                            let name = logged_in_as().unwrap_or_default();
-                                            let pw = password();
-                                            let mid = current_meeting_id();
-                                            let score = album_rating();
-                                            album_submit.set(None);
-                                            spawn(async move {
-                                                let result = submit_album_review(name, pw, mid.clone(), score)
-                                                    .await
-                                                    .map_err(|e| e.to_string());
-                                                if result.is_ok() {
-                                                    if let Ok(fresh) = get_reviews(mid).await {
-                                                        reviews.set(Some(Ok(fresh)));
-                                                    }
-                                                }
-                                                album_submit.set(Some(result));
-                                            });
-                                        },
-                                        "Skicka albumbetyg"
-                                    }
-
-                                    if let Some(ref result) = album_submit() {
-                                        match result {
-                                            Ok(()) => rsx! {
-                                                p { class: "review-success", "✓ Albumbetyg sparat!" }
-                                            },
-                                            Err(e) => rsx! {
-                                                p { class: "review-error", "Fel: {e}" }
-                                            },
-                                        }
+                                    if let Some(Err(ref e)) = album_submit() {
+                                        p { class: "review-error", "Fel: {e}" }
                                     }
                                 }
 
@@ -336,9 +321,9 @@ pub fn Review() -> Element {
                                                         key: "{track.track_id}",
                                                         track: track.clone(),
                                                         score: track_ratings()
-                                                                                                                                                                            .get(&track.track_id)
-                                                                                                                                                                            .copied()
-                                                                                                                                                                            .unwrap_or(0),
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            .get(&track.track_id)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            .copied()
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            .unwrap_or(0),
                                                         on_change: {
                                                             let tid = track.track_id.clone();
                                                             move |s: u8| {
@@ -350,47 +335,8 @@ pub fn Review() -> Element {
                                                 }
                                             }
 
-                                            button {
-                                                class: "review-button",
-                                                onclick: move |_| {
-                                                    let name = logged_in_as().unwrap_or_default();
-                                                    let pw = password();
-                                                    let mid = current_meeting_id();
-                                                    let ratings = track_ratings();
-                                                    track_submit.set(None);
-                                                    spawn(async move {
-                                                        for (tid, score) in ratings.iter() {
-                                                            if let Err(e) = submit_track_review(
-                                                                    name.clone(),
-                                                                    pw.clone(),
-                                                                    mid.clone(),
-                                                                    tid.clone(),
-                                                                    *score,
-                                                                )
-                                                                .await
-                                                            {
-                                                                track_submit.set(Some(Err(e.to_string())));
-                                                                return;
-                                                            }
-                                                        }
-                                                        if let Ok(fresh) = get_reviews(mid).await {
-                                                            reviews.set(Some(Ok(fresh)));
-                                                        }
-                                                        track_submit.set(Some(Ok(())));
-                                                    });
-                                                },
-                                                "Skicka låtbetyg"
-                                            }
-
-                                            if let Some(ref result) = track_submit() {
-                                                match result {
-                                                    Ok(()) => rsx! {
-                                                        p { class: "review-success", "✓ Låtbetyg sparade!" }
-                                                    },
-                                                    Err(e) => rsx! {
-                                                        p { class: "review-error", "Fel: {e}" }
-                                                    },
-                                                }
+                                            if let Some(Err(ref e)) = track_submit() {
+                                                p { class: "review-error", "Fel: {e}" }
                                             }
                                         }
                                     },
@@ -412,7 +358,7 @@ pub fn Review() -> Element {
 
 #[component]
 fn AggregateScores(reviews: Reviews, tracks: Vec<AlbumTrack>) -> Element {
-    if reviews.album_reviews.is_empty() && reviews.track_reviews.is_empty() {
+    if reviews.album_reviews.is_empty() && reviews.track_reviews.is_empty() && tracks.is_empty() {
         return rsx! {};
     }
 
@@ -422,6 +368,28 @@ fn AggregateScores(reviews: Reviews, tracks: Vec<AlbumTrack>) -> Element {
         let sum: u32 = reviews.album_reviews.iter().map(|r| r.score as u32).sum();
         Some(sum as f32 / reviews.album_reviews.len() as f32)
     };
+
+    // Build per-track averages; always sorted by track number.
+    let mut track_data: Vec<(AlbumTrack, Option<f32>, usize)> = tracks
+        .into_iter()
+        .map(|track| {
+            let scores: Vec<u8> = reviews
+                .track_reviews
+                .iter()
+                .filter(|r| r.track_id == track.track_id)
+                .map(|r| r.score)
+                .collect();
+            let count = scores.len();
+            let avg = if scores.is_empty() {
+                None
+            } else {
+                let sum: u32 = scores.iter().map(|&s| s as u32).sum();
+                Some(sum as f32 / count as f32)
+            };
+            (track, avg, count)
+        })
+        .collect();
+    track_data.sort_by_key(|(t, _, _)| t.track_number);
 
     rsx! {
         div { class: "card review-aggregate-card",
@@ -438,36 +406,36 @@ fn AggregateScores(reviews: Reviews, tracks: Vec<AlbumTrack>) -> Element {
                 }
             }
 
-            if !tracks.is_empty() && !reviews.track_reviews.is_empty() {
+            if !track_data.is_empty() {
                 div { class: "review-aggregate-tracks",
                     h4 { "Låtar" }
-                    for track in tracks.iter() {
-                        {
-                            let tid = &track.track_id;
-                            let scores: Vec<u8> = reviews
-                                .track_reviews
-                                .iter()
-                                .filter(|r| &r.track_id == tid)
-                                .map(|r| r.score)
-                                .collect();
-
-                            if scores.is_empty() {
-                                rsx! {}
-                            } else {
-                                let sum: u32 = scores.iter().map(|&s| s as u32).sum();
-                                let avg = sum as f32 / scores.len() as f32;
-                                let num = track.track_number;
-                                let name = track.track_name.clone();
-                                let count = scores.len();
-                                rsx! {
-                                    div { class: "review-aggregate-track-row",
-                                        span { class: "review-track-num", "{num}" }
-                                        span { class: "review-track-name", "{name}" }
-                                        AverageStars { avg }
-                                        span { class: "review-aggregate-num", {format!("{:.1}", avg)} }
-                                        span { class: "review-aggregate-count", "({count})" }
+                    for (track , avg_opt , count) in track_data.iter() {
+                        div {
+                            key: "{track.track_id}",
+                            class: "review-aggregate-track-row",
+                            span { class: "review-track-num", "{track.track_number}" }
+                            span { class: "review-track-name", "{track.track_name}" }
+                            span { class: "review-track-spotify-slot",
+                                if let Some(ref url) = track.spotify_url {
+                                    a {
+                                        href: "{url}",
+                                        target: "_blank",
+                                        rel: "noopener noreferrer",
+                                        class: "review-track-spotify-link",
+                                        Icon { icon: FaSpotify }
                                     }
                                 }
+                            }
+                            if let Some(avg) = avg_opt {
+                                AverageStars { avg: *avg }
+                                span { class: "review-aggregate-num", {format!("{:.1}", avg)} }
+                                span { class: "review-aggregate-count", "({count})" }
+                            } else {
+                                AverageStars { avg: 0.0, placeholder: true }
+                                span { class: "review-aggregate-num review-aggregate-no-reviews",
+                                    "–"
+                                }
+                                span {}
                             }
                         }
                     }
@@ -487,6 +455,17 @@ fn TrackRatingRow(track: AlbumTrack, score: u8, on_change: EventHandler<u8>) -> 
         div { class: "review-track-row",
             span { class: "review-track-num", "{track.track_number}" }
             span { class: "review-track-name", "{track.track_name}" }
+            span { class: "review-track-spotify-slot",
+                if let Some(ref url) = track.spotify_url {
+                    a {
+                        href: "{url}",
+                        target: "_blank",
+                        rel: "noopener noreferrer",
+                        class: "review-track-spotify-link",
+                        Icon { icon: FaSpotify }
+                    }
+                }
+            }
             div { class: "review-track-rating",
                 StarRating { score, on_change }
                 span { class: "review-track-score-text",
@@ -577,13 +556,18 @@ fn StarRating(score: u8, on_change: EventHandler<u8>) -> Element {
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[component]
-fn AverageStars(avg: f32) -> Element {
-    // Convert 0.0–10.0 average to a 0–10 display score (round to nearest half)
-    let display_score = (avg * 2.0).round() as u8;
+fn AverageStars(avg: f32, #[props(default = false)] placeholder: bool) -> Element {
+    // Round to nearest integer on the 0–10 scale (each integer = one half-star)
+    let display_score = avg.round() as u8;
+    let class = if placeholder {
+        "star-rating star-rating-readonly star-rating-placeholder"
+    } else {
+        "star-rating star-rating-readonly"
+    };
 
     rsx! {
         div {
-            class: "star-rating star-rating-readonly",
+            class: "{class}",
             "aria-label": format!("Genomsnitt {:.1} av 10", avg),
             for star in 1u8..=5 {
                 {

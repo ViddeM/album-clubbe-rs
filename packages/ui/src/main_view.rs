@@ -118,6 +118,8 @@ fn CurrentAlbumView(album: Album, picked_by: Option<Name>) -> Element {
                     "Lyssna på Spotify"
                     Icon { icon: FiExternalLink }
                 }
+
+                a { href: "/review", class: "review-link gap-2", "⭐ Recensera albumet" }
             }
         }
     }

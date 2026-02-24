@@ -3,9 +3,9 @@ use dioxus::prelude::*;
 #[cfg(feature = "server")]
 use std::sync::OnceLock;
 
-use crate::api_models::{AlbumTrack, Data, HistoryEntry, Reviews, SpotifyAlbumSearchItem};
 #[cfg(feature = "server")]
 use crate::api_models::{AlbumReview, TrackReview};
+use crate::api_models::{AlbumTrack, Data, HistoryEntry, Reviews, SpotifyAlbumSearchItem};
 
 pub mod api_models;
 
@@ -389,10 +389,7 @@ pub async fn admin_reorder_members(
 
 /// Verify a member's credentials (name + pre-shared password). Returns Ok if valid.
 #[post("/api/member/verify")]
-pub async fn verify_member(
-    member_name: String,
-    password: String,
-) -> Result<(), ServerFnError> {
+pub async fn verify_member(member_name: String, password: String) -> Result<(), ServerFnError> {
     #[cfg(not(feature = "server"))]
     {
         let _ = (member_name, password);
@@ -404,7 +401,7 @@ pub async fn verify_member(
 }
 
 /// Get the cached track listing for an album. Fetches from Spotify on first call.
-#[get("/api/tracks")]
+#[server]
 pub async fn get_album_tracks(album_id: String) -> Result<Vec<AlbumTrack>, ServerFnError> {
     #[cfg(not(feature = "server"))]
     {
@@ -418,8 +415,8 @@ pub async fn get_album_tracks(album_id: String) -> Result<Vec<AlbumTrack>, Serve
         let pool = get_db().await?;
 
         // Return from cache if available.
-        let cached: Vec<(String, i64, String, Option<i64>)> = sqlx::query_as(
-            "SELECT track_id, track_number, track_name, duration_ms
+        let cached: Vec<(String, i64, String, Option<i64>, Option<String>)> = sqlx::query_as(
+            "SELECT track_id, track_number, track_name, duration_ms, spotify_url
              FROM album_tracks WHERE album_id = ? ORDER BY track_number",
         )
         .bind(&album_id)
@@ -427,15 +424,19 @@ pub async fn get_album_tracks(album_id: String) -> Result<Vec<AlbumTrack>, Serve
         .await
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 
-        if !cached.is_empty() {
+        // Return from cache if available and complete (all rows have spotify_url).
+        if !cached.is_empty() && cached.iter().all(|(_, _, _, _, url)| url.is_some()) {
             return Ok(cached
                 .into_iter()
-                .map(|(track_id, track_number, track_name, duration_ms)| AlbumTrack {
-                    track_id,
-                    track_number: track_number as u32,
-                    track_name,
-                    duration_ms,
-                })
+                .map(
+                    |(track_id, track_number, track_name, duration_ms, spotify_url)| AlbumTrack {
+                        track_id,
+                        track_number: track_number as u32,
+                        track_name,
+                        duration_ms,
+                        spotify_url,
+                    },
+                )
                 .collect());
         }
 
@@ -467,14 +468,15 @@ pub async fn get_album_tracks(album_id: String) -> Result<Vec<AlbumTrack>, Serve
 
         for t in &tracks {
             sqlx::query(
-                "INSERT OR IGNORE INTO album_tracks (album_id, track_number, track_id, track_name, duration_ms)
-                 VALUES (?, ?, ?, ?, ?)",
+                "INSERT OR REPLACE INTO album_tracks (album_id, track_number, track_id, track_name, duration_ms, spotify_url)
+                 VALUES (?, ?, ?, ?, ?, ?)",
             )
             .bind(&album_id)
             .bind(t.track_number as i64)
             .bind(&t.id)
             .bind(&t.name)
             .bind(t.duration_ms.map(|d| d as i64))
+            .bind(&t.spotify_url)
             .execute(&mut *tx)
             .await
             .map_err(|e| ServerFnError::new(e.to_string()))?;
@@ -491,13 +493,14 @@ pub async fn get_album_tracks(album_id: String) -> Result<Vec<AlbumTrack>, Serve
                 track_number: t.track_number,
                 track_name: t.name,
                 duration_ms: t.duration_ms.map(|d| d as i64),
+                spotify_url: t.spotify_url,
             })
             .collect())
     }
 }
 
 /// Get all album and track reviews for a meeting.
-#[get("/api/reviews")]
+#[server]
 pub async fn get_reviews(meeting_id: String) -> Result<Reviews, ServerFnError> {
     #[cfg(not(feature = "server"))]
     {
@@ -514,13 +517,11 @@ pub async fn get_reviews(meeting_id: String) -> Result<Reviews, ServerFnError> {
         let pool = get_db().await?;
         use sqlx::Row;
 
-        let album_rows = sqlx::query(
-            "SELECT member_name, score FROM reviews WHERE meeting_id = ?",
-        )
-        .bind(&meeting_id)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
+        let album_rows = sqlx::query("SELECT member_name, score FROM reviews WHERE meeting_id = ?")
+            .bind(&meeting_id)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
 
         let album_reviews = album_rows
             .into_iter()
@@ -574,7 +575,9 @@ pub async fn submit_album_review(
 
     #[cfg(feature = "server")]
     {
-        tracing::info!("submit_album_review member=\"{member_name}\" meeting=\"{meeting_id}\" score={score}");
+        tracing::info!(
+            "submit_album_review member=\"{member_name}\" meeting=\"{meeting_id}\" score={score}"
+        );
         verify_member_password_internal(&member_name, &password).await?;
 
         use uuid::Uuid;
@@ -656,13 +659,11 @@ async fn verify_member_password_internal(
 
     let pool = get_db().await?;
 
-    let row = sqlx::query(
-        "SELECT password_hash FROM members WHERE name = ?",
-    )
-    .bind(member_name)
-    .fetch_optional(pool)
-    .await
-    .map_err(|e| ServerFnError::new(e.to_string()))?;
+    let row = sqlx::query("SELECT password_hash FROM members WHERE name = ?")
+        .bind(member_name)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     let row = row.ok_or_else(|| ServerFnError::new("Unknown member"))?;
     let hash: Option<String> = row.get("password_hash");
@@ -769,15 +770,13 @@ pub async fn admin_set_member_password(
 
         let pool = get_db().await?;
 
-        let rows_affected = sqlx::query(
-            "UPDATE members SET password_hash = ? WHERE name = ?",
-        )
-        .bind(&hash)
-        .bind(&member_name)
-        .execute(pool)
-        .await
-        .map_err(|e| ServerFnError::new(e.to_string()))?
-        .rows_affected();
+        let rows_affected = sqlx::query("UPDATE members SET password_hash = ? WHERE name = ?")
+            .bind(&hash)
+            .bind(&member_name)
+            .execute(pool)
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?
+            .rows_affected();
 
         if rows_affected == 0 {
             return Err(ServerFnError::new(format!(

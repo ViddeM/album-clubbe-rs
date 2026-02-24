@@ -59,6 +59,7 @@ pub struct AlbumTrack {
     pub track_number: u32,
     pub track_name: String,
     pub duration_ms: Option<i64>,
+    pub spotify_url: Option<String>,
 }
 
 /// One member's album-level review score (0–10).

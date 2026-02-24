@@ -161,6 +161,32 @@
     }
 }
 
+.review-link {
+    display: inline-flex;
+    align-items: center;
+    background-color: $color-main;
+    color: $color-white;
+    padding-inline: calc($spacing * 6);
+    padding-block: calc($spacing * 3);
+    border-radius: 9999px;
+    font-weight: 600;
+    width: fit-content;
+    margin-top: calc($spacing * 3);
+
+    transition-property: color, background-color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+
+    &:hover {
+        background-color: color-mix(in oklab, $color-main 80%, $color-white);
+    }
+
+    @media (width < $medium-breakpoint) {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
 .note-icon {
     width: calc($spacing * 5);
     height: calc($spacing * 5);
