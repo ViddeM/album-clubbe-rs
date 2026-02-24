@@ -25,8 +25,8 @@ pub fn SiteFooter() -> Element {
     rsx! {
         footer { class: "site-footer",
             a { href: "/", "Startsida" }
+            a { href: "/review", "Recensera" }
             a { href: "/history", "Historik" }
-            a { href: "/review", "Granska" }
             a { href: "/admin", "Admin" }
         }
     }
