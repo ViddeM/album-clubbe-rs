@@ -3,7 +3,9 @@ use dioxus::prelude::*;
 #[cfg(feature = "server")]
 use std::sync::OnceLock;
 
-use crate::api_models::{Data, HistoryEntry, SpotifyAlbumSearchItem};
+use crate::api_models::{AlbumTrack, Data, HistoryEntry, Reviews, SpotifyAlbumSearchItem};
+#[cfg(feature = "server")]
+use crate::api_models::{AlbumReview, TrackReview};
 
 pub mod api_models;
 
@@ -99,7 +101,7 @@ pub async fn get_current() -> Result<Data, ServerFnError> {
                 .map_err(|e| ServerFnError::new(e.to_string()))?;
 
         let row = sqlx::query(
-            "SELECT album_id, album_name, album_artist, album_art_url, album_spotify_url,
+            "SELECT id, album_id, album_name, album_artist, album_art_url, album_spotify_url,
                     picker, meeting_date, meeting_time, meeting_location
              FROM meetings WHERE is_current = 1",
         )
@@ -112,6 +114,7 @@ pub async fn get_current() -> Result<Data, ServerFnError> {
 
         match row {
             None => Ok(Data {
+                current_meeting_id: None,
                 current_album: None,
                 next_meeting: None,
                 current_person: None,
@@ -129,6 +132,7 @@ pub async fn get_current() -> Result<Data, ServerFnError> {
                 });
 
                 Ok(Data {
+                    current_meeting_id: Some(row.get("id")),
                     current_album: Some(crate::api_models::Album {
                         id: row.get("album_id"),
                         name: row.get("album_name"),
@@ -383,6 +387,298 @@ pub async fn admin_reorder_members(
     }
 }
 
+/// Verify a member's credentials (name + pre-shared password). Returns Ok if valid.
+#[post("/api/member/verify")]
+pub async fn verify_member(
+    member_name: String,
+    password: String,
+) -> Result<(), ServerFnError> {
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = (member_name, password);
+        return Err(ServerFnError::new("Only available on server builds"));
+    }
+
+    #[cfg(feature = "server")]
+    verify_member_password_internal(&member_name, &password).await
+}
+
+/// Get the cached track listing for an album. Fetches from Spotify on first call.
+#[get("/api/tracks")]
+pub async fn get_album_tracks(album_id: String) -> Result<Vec<AlbumTrack>, ServerFnError> {
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = album_id;
+        return Ok(Vec::new());
+    }
+
+    #[cfg(feature = "server")]
+    {
+        tracing::debug!("get_album_tracks album_id=\"{album_id}\"");
+        let pool = get_db().await?;
+
+        // Return from cache if available.
+        let cached: Vec<(String, i64, String, Option<i64>)> = sqlx::query_as(
+            "SELECT track_id, track_number, track_name, duration_ms
+             FROM album_tracks WHERE album_id = ? ORDER BY track_number",
+        )
+        .bind(&album_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+        if !cached.is_empty() {
+            return Ok(cached
+                .into_iter()
+                .map(|(track_id, track_number, track_name, duration_ms)| AlbumTrack {
+                    track_id,
+                    track_number: track_number as u32,
+                    track_name,
+                    duration_ms,
+                })
+                .collect());
+        }
+
+        // Fetch from Spotify and cache.
+        let spotify_client = SPOTIFY_CLIENT.get_or_init(|| tokio::sync::Mutex::new(None));
+        let mut spotify_guard = spotify_client.lock().await;
+
+        if spotify_guard.is_none() {
+            *spotify_guard = Some(
+                spotify::SpotifyClient::from_env()
+                    .map_err(|e| ServerFnError::new(e.to_string()))?,
+            );
+        }
+
+        let client = spotify_guard
+            .as_mut()
+            .ok_or_else(|| ServerFnError::new("Failed to initialize Spotify client"))?;
+
+        let tracks = client
+            .get_album_tracks(&album_id)
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+        // Cache them.
+        let mut tx = pool
+            .begin()
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+        for t in &tracks {
+            sqlx::query(
+                "INSERT OR IGNORE INTO album_tracks (album_id, track_number, track_id, track_name, duration_ms)
+                 VALUES (?, ?, ?, ?, ?)",
+            )
+            .bind(&album_id)
+            .bind(t.track_number as i64)
+            .bind(&t.id)
+            .bind(&t.name)
+            .bind(t.duration_ms.map(|d| d as i64))
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
+        }
+
+        tx.commit()
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+        Ok(tracks
+            .into_iter()
+            .map(|t| AlbumTrack {
+                track_id: t.id,
+                track_number: t.track_number,
+                track_name: t.name,
+                duration_ms: t.duration_ms.map(|d| d as i64),
+            })
+            .collect())
+    }
+}
+
+/// Get all album and track reviews for a meeting.
+#[get("/api/reviews")]
+pub async fn get_reviews(meeting_id: String) -> Result<Reviews, ServerFnError> {
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = meeting_id;
+        return Ok(Reviews {
+            album_reviews: Vec::new(),
+            track_reviews: Vec::new(),
+        });
+    }
+
+    #[cfg(feature = "server")]
+    {
+        tracing::debug!("get_reviews meeting_id=\"{meeting_id}\"");
+        let pool = get_db().await?;
+        use sqlx::Row;
+
+        let album_rows = sqlx::query(
+            "SELECT member_name, score FROM reviews WHERE meeting_id = ?",
+        )
+        .bind(&meeting_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+        let album_reviews = album_rows
+            .into_iter()
+            .map(|r| AlbumReview {
+                member_name: r.get("member_name"),
+                score: r.get::<i64, _>("score") as u8,
+            })
+            .collect();
+
+        let track_rows = sqlx::query(
+            "SELECT member_name, track_id, score FROM track_reviews WHERE meeting_id = ?",
+        )
+        .bind(&meeting_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+        let track_reviews = track_rows
+            .into_iter()
+            .map(|r| TrackReview {
+                member_name: r.get("member_name"),
+                track_id: r.get("track_id"),
+                score: r.get::<i64, _>("score") as u8,
+            })
+            .collect();
+
+        Ok(Reviews {
+            album_reviews,
+            track_reviews,
+        })
+    }
+}
+
+/// Submit or update an album-level review.
+#[post("/api/review/album")]
+pub async fn submit_album_review(
+    member_name: String,
+    password: String,
+    meeting_id: String,
+    score: u8,
+) -> Result<(), ServerFnError> {
+    if score > 10 {
+        return Err(ServerFnError::new("Score must be between 0 and 10"));
+    }
+
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = (member_name, password, meeting_id, score);
+        return Err(ServerFnError::new("Only available on server builds"));
+    }
+
+    #[cfg(feature = "server")]
+    {
+        tracing::info!("submit_album_review member=\"{member_name}\" meeting=\"{meeting_id}\" score={score}");
+        verify_member_password_internal(&member_name, &password).await?;
+
+        use uuid::Uuid;
+        let pool = get_db().await?;
+
+        sqlx::query(
+            "INSERT INTO reviews (id, meeting_id, member_name, score)
+             VALUES (?, ?, ?, ?)
+             ON CONFLICT(meeting_id, member_name)
+             DO UPDATE SET score = excluded.score, updated_at = datetime('now')",
+        )
+        .bind(Uuid::new_v4().to_string())
+        .bind(&meeting_id)
+        .bind(&member_name)
+        .bind(score as i64)
+        .execute(pool)
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+        tracing::info!("submit_album_review → ok");
+        Ok(())
+    }
+}
+
+/// Submit or update a per-track review.
+#[post("/api/review/track")]
+pub async fn submit_track_review(
+    member_name: String,
+    password: String,
+    meeting_id: String,
+    track_id: String,
+    score: u8,
+) -> Result<(), ServerFnError> {
+    if score > 10 {
+        return Err(ServerFnError::new("Score must be between 0 and 10"));
+    }
+
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = (member_name, password, meeting_id, track_id, score);
+        return Err(ServerFnError::new("Only available on server builds"));
+    }
+
+    #[cfg(feature = "server")]
+    {
+        tracing::info!("submit_track_review member=\"{member_name}\" track=\"{track_id}\" meeting=\"{meeting_id}\" score={score}");
+        verify_member_password_internal(&member_name, &password).await?;
+
+        use uuid::Uuid;
+        let pool = get_db().await?;
+
+        sqlx::query(
+            "INSERT INTO track_reviews (id, meeting_id, member_name, track_id, score)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(meeting_id, member_name, track_id)
+             DO UPDATE SET score = excluded.score, updated_at = datetime('now')",
+        )
+        .bind(Uuid::new_v4().to_string())
+        .bind(&meeting_id)
+        .bind(&member_name)
+        .bind(&track_id)
+        .bind(score as i64)
+        .execute(pool)
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+        tracing::info!("submit_track_review → ok");
+        Ok(())
+    }
+}
+
+#[cfg(feature = "server")]
+async fn verify_member_password_internal(
+    member_name: &str,
+    password: &str,
+) -> Result<(), ServerFnError> {
+    use argon2::{Argon2, PasswordHash, PasswordVerifier};
+    use sqlx::Row;
+
+    let pool = get_db().await?;
+
+    let row = sqlx::query(
+        "SELECT password_hash FROM members WHERE name = ?",
+    )
+    .bind(member_name)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+    let row = row.ok_or_else(|| ServerFnError::new("Unknown member"))?;
+    let hash: Option<String> = row.get("password_hash");
+
+    let hash = hash.ok_or_else(|| {
+        ServerFnError::new("No password set for this member — ask an admin to generate one")
+    })?;
+
+    let parsed =
+        PasswordHash::new(&hash).map_err(|_| ServerFnError::new("Stored hash is invalid"))?;
+
+    Argon2::default()
+        .verify_password(password.as_bytes(), &parsed)
+        .map_err(|_| ServerFnError::new("Incorrect password"))
+}
+
 #[post("/api/admin/spotify/search")]
 pub async fn admin_spotify_album_search(
     admin_token: String,
@@ -436,5 +732,60 @@ pub async fn admin_spotify_album_search(
 
         tracing::debug!("POST /api/admin/spotify/search → {} results", albums.len());
         Ok(albums)
+    }
+}
+/// Generate a new random password for a member, store its Argon2 hash, and return
+/// the plain-text password once so the admin can share it with the member.
+#[post("/api/admin/member/set-password")]
+pub async fn admin_set_member_password(
+    admin_token: String,
+    member_name: String,
+) -> Result<String, ServerFnError> {
+    ensure_admin_token(&admin_token)?;
+
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = (admin_token, member_name);
+        return Err(ServerFnError::new("Only available on server builds"));
+    }
+
+    #[cfg(feature = "server")]
+    {
+        use argon2::{
+            password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
+            Argon2,
+        };
+        use rand::distributions::{Alphanumeric, DistString};
+
+        tracing::info!("POST /api/admin/member/set-password member=\"{member_name}\"");
+
+        let plain: String = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+
+        let salt = SaltString::generate(&mut OsRng);
+        let hash = Argon2::default()
+            .hash_password(plain.as_bytes(), &salt)
+            .map_err(|e| ServerFnError::new(format!("Failed to hash password: {e}")))?
+            .to_string();
+
+        let pool = get_db().await?;
+
+        let rows_affected = sqlx::query(
+            "UPDATE members SET password_hash = ? WHERE name = ?",
+        )
+        .bind(&hash)
+        .bind(&member_name)
+        .execute(pool)
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?
+        .rows_affected();
+
+        if rows_affected == 0 {
+            return Err(ServerFnError::new(format!(
+                "Member \"{member_name}\" not found"
+            )));
+        }
+
+        tracing::info!("POST /api/admin/member/set-password \"{member_name}\" → ok");
+        Ok(plain)
     }
 }

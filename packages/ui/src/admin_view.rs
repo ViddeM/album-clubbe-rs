@@ -1,6 +1,7 @@
 use api::admin_delete_history_entry;
 use api::admin_reorder_members;
 use api::admin_set_current;
+use api::admin_set_member_password;
 use api::admin_spotify_album_search;
 use api::admin_update_current;
 use api::api_models::{Data, HistoryEntry, SpotifyAlbumSearchItem};
@@ -21,6 +22,7 @@ enum AdminTab {
     Album,
     Rotation,
     History,
+    Passwords,
 }
 
 #[component]
@@ -51,6 +53,10 @@ pub fn Admin() -> Element {
     // Edit-current mode
     let mut is_editing_current = use_signal(|| false);
     let mut current_data = use_signal(|| None::<Data>);
+
+    // Passwords tab
+    let mut pw_member = use_signal(String::new);
+    let mut pw_result = use_signal(|| None::<Result<String, String>>);
 
     // Load members on mount via the info endpoint.
     use_future(move || async move {
@@ -114,6 +120,14 @@ pub fn Admin() -> Element {
                         });
                     },
                     "Historik"
+                }
+                button {
+                    class: if active_tab() == AdminTab::Passwords { "admin-tab admin-tab-active" } else { "admin-tab" },
+                    onclick: move |_| {
+                        active_tab.set(AdminTab::Passwords);
+                        pw_result.set(None);
+                    },
+                    "Lösenord"
                 }
             }
 
@@ -595,6 +609,74 @@ pub fn Admin() -> Element {
                                 }
                             }
                         },
+                    }
+                }
+            }
+
+            // ── Tab: Lösenord ────────────────────────────────────────────────
+            if active_tab() == AdminTab::Passwords {
+                div { class: "card admin-section",
+                    h2 { "Generera lösenord" }
+                    p { class: "admin-hint",
+                        "Generera ett slumpmässigt lösenord för en medlem. \
+                         Lösenordet visas en gång – dela det med medlemmen direkt."
+                    }
+
+                    div { class: "admin-field",
+                        label { class: "admin-label", r#for: "pw-member", "Medlem" }
+                        select {
+                            id: "pw-member",
+                            value: "{pw_member}",
+                            onchange: move |e| {
+                                pw_member.set(e.value());
+                                pw_result.set(None);
+                            },
+                            option {
+                                value: "",
+                                disabled: true,
+                                selected: pw_member().is_empty(),
+                                "Välj medlem..."
+                            }
+                            for member in members() {
+                                option {
+                                    value: "{member}",
+                                    selected: pw_member() == member,
+                                    "{member}"
+                                }
+                            }
+                        }
+                    }
+
+                    button {
+                        class: "admin-button admin-button-submit",
+                        disabled: pw_member().is_empty() || admin_token().trim().is_empty(),
+                        onclick: move |_| {
+                            let token = admin_token();
+                            let name = pw_member();
+                            pw_result.set(None);
+                            spawn(async move {
+                                let result = admin_set_member_password(token, name)
+                                    .await
+                                    .map_err(|e| e.to_string());
+                                pw_result.set(Some(result));
+                            });
+                        },
+                        "Generera lösenord"
+                    }
+
+                    if let Some(result) = pw_result() {
+                        match result {
+                            Ok(plain) => rsx! {
+                                div { class: "admin-pw-result",
+                                    p { class: "admin-success", "✓ Lösenord genererat!" }
+                                    p { class: "admin-hint", "Kopiera och dela med medlemmen:" }
+                                    code { class: "admin-pw-code", "{plain}" }
+                                }
+                            },
+                            Err(e) => rsx! {
+                                p { class: "admin-error", "Fel: {e}" }
+                            },
+                        }
                     }
                 }
             }

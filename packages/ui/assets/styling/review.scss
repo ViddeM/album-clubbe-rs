@@ -1,0 +1,486 @@
+@import "./theme.scss";
+
+// ── Shared colors ─────────────────────────────────────────────────────────────
+
+$star-empty-color:  color-mix(in oklab, $color-purple-400 40%, transparent);
+$star-filled-color: #fbbf24; // amber-400
+
+// ── Page wrapper ──────────────────────────────────────────────────────────────
+
+.review-page-wrapper {
+    margin-inline: auto;
+    max-width: 48rem;
+    padding-block: calc($spacing * 5);
+    padding-inline: calc($spacing * 3);
+
+    @media (width >= $medium-breakpoint) {
+        padding-block: calc($spacing * 8);
+        padding-inline: calc($spacing * 4);
+    }
+
+    > * + * {
+        margin-top: calc($spacing * 6);
+    }
+}
+
+// ── Page wrapper ──────────────────────────────────────────────────────────────
+
+.page-wrapper {
+    margin-inline: auto;
+    max-width: 48rem;
+    padding-block: calc($spacing * 5);
+    padding-inline: calc($spacing * 3);
+
+    @media (width >= $medium-breakpoint) {
+        padding-block: calc($spacing * 8);
+        padding-inline: calc($spacing * 4);
+    }
+
+    > * + * {
+        margin-top: calc($spacing * 6);
+    }
+}
+
+// ── Album info card ───────────────────────────────────────────────────────────
+
+.review-album-card {
+    display: flex;
+    flex-direction: row;
+    gap: calc($spacing * 5);
+    align-items: flex-start;
+}
+
+.review-album-art-wrap {
+    flex-shrink: 0;
+}
+
+.review-album-art {
+    width: 7rem;
+    height: 7rem;
+    border-radius: $radius;
+    object-fit: cover;
+}
+
+.review-album-info {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 2);
+}
+
+.review-album-name {
+    font-size: $font-size-xl;
+    line-height: $line-height-xl;
+    font-weight: $font-weight-semibold;
+    margin: 0;
+}
+
+.review-album-artist {
+    color: $color-purple-300;
+    font-size: $font-size-small;
+    margin: 0;
+}
+
+.review-album-picker {
+    font-size: $font-size-small;
+    color: $color-purple-200;
+    margin: 0;
+
+    .review-album-picker-name {
+        font-weight: $font-weight-semibold;
+    }
+}
+
+.review-spotify-link {
+    display: inline-flex;
+    align-items: center;
+    gap: calc($spacing * 2);
+    font-size: $font-size-small;
+    color: $color-green-400;
+    text-decoration: none;
+
+    &:hover {
+        color: $color-green-300;
+    }
+}
+
+// ── Aggregate scores ──────────────────────────────────────────────────────────
+
+.review-aggregate-card {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 4);
+
+    h3 {
+        font-size: $font-size-lg;
+        line-height: $line-height-lg;
+        font-weight: $font-weight-semibold;
+        margin: 0;
+    }
+}
+
+.review-aggregate-album {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: calc($spacing * 3);
+    flex-wrap: wrap;
+}
+
+.review-aggregate-label {
+    font-weight: $font-weight-semibold;
+    color: $color-purple-200;
+    min-width: 3.5rem;
+}
+
+.review-aggregate-num {
+    font-weight: $font-weight-semibold;
+    font-size: $font-size-small;
+    color: $color-white;
+}
+
+.review-aggregate-count {
+    font-size: $font-size-xs;
+    line-height: $line-height-xs;
+    color: $color-purple-300;
+}
+
+.review-aggregate-tracks {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 2);
+
+    h4 {
+        font-size: $font-size-small;
+        font-weight: $font-weight-semibold;
+        color: $color-purple-200;
+        margin: 0 0 calc($spacing * 1);
+    }
+}
+
+.review-aggregate-track-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: calc($spacing * 3);
+    flex-wrap: wrap;
+}
+
+// ── Login card ────────────────────────────────────────────────────────────────
+
+.review-login-card {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 5);
+
+    h2 {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+        margin: 0;
+    }
+}
+
+.review-login-hint {
+    font-size: $font-size-small;
+    color: $color-purple-300;
+    margin: 0;
+}
+
+.review-login-fields {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 4);
+
+    @media (width >= $medium-breakpoint) {
+        flex-direction: row;
+    }
+}
+
+// ── Form fields ───────────────────────────────────────────────────────────────
+
+.review-field {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 2);
+    flex: 1;
+}
+
+.review-label {
+    font-size: $font-size-small;
+    font-weight: $font-weight-semibold;
+    color: $color-purple-200;
+}
+
+input,
+select {
+    background-color: color-mix(in oklab, $color-white 10%, transparent);
+    color: $color-white;
+    border: 1px solid color-mix(in oklab, $color-white 25%, transparent);
+    border-radius: $radius;
+    padding: calc($spacing * 3) calc($spacing * 4);
+    font-size: $font-size-small;
+    line-height: $line-height-small;
+    width: 100%;
+    outline: none;
+
+    &:focus {
+        border-color: $color-purple-400;
+        box-shadow: 0 0 0 2px color-mix(in oklab, $color-purple-400 30%, transparent);
+    }
+
+    &::placeholder {
+        color: $color-purple-300;
+        opacity: 0.7;
+    }
+
+    option {
+        background-color: $color-slate-900;
+        color: $color-white;
+    }
+}
+
+// ── Review button ─────────────────────────────────────────────────────────────
+
+.review-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding-block: calc($spacing * 3);
+    padding-inline: calc($spacing * 6);
+    background-color: $color-purple-600;
+    color: $color-white;
+    border: none;
+    border-radius: $radius;
+    font-size: $font-size-small;
+    font-weight: $font-weight-semibold;
+    cursor: pointer;
+    transition: background-color 150ms;
+    align-self: flex-start;
+
+    &:hover:not(:disabled) {
+        background-color: color-mix(in oklab, $color-purple-600 80%, $color-white);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}
+
+// ── Feedback messages ─────────────────────────────────────────────────────────
+
+.review-success {
+    color: $color-green-400;
+    font-size: $font-size-small;
+    margin: 0;
+}
+
+.review-error {
+    color: #f87171;
+    font-size: $font-size-small;
+    margin: 0;
+}
+
+.review-loading,
+.review-empty,
+.review-tracks-loading {
+    color: $color-purple-300;
+    font-size: $font-size-small;
+    text-align: center;
+    padding-block: calc($spacing * 8);
+}
+
+// ── Review form ───────────────────────────────────────────────────────────────
+
+.review-form-container {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 6);
+}
+
+.review-logged-banner {
+    display: flex;
+    align-items: center;
+    gap: calc($spacing * 3);
+    font-size: $font-size-small;
+    color: $color-purple-200;
+    background-color: color-mix(in oklab, $color-white 6%, transparent);
+    border: 1px solid color-mix(in oklab, $color-white 12%, transparent);
+    border-radius: $radius;
+    padding: calc($spacing * 3) calc($spacing * 4);
+
+    strong {
+        color: $color-white;
+    }
+}
+
+.review-logout-btn {
+    margin-left: auto;
+    background: none;
+    border: 1px solid color-mix(in oklab, $color-white 20%, transparent);
+    color: $color-purple-300;
+    border-radius: $radius;
+    padding: calc($spacing * 1) calc($spacing * 3);
+    font-size: $font-size-xs;
+    cursor: pointer;
+    transition: color 150ms, border-color 150ms;
+
+    &:hover {
+        color: $color-white;
+        border-color: color-mix(in oklab, $color-white 40%, transparent);
+    }
+}
+
+.review-section {
+    display: flex;
+    flex-direction: column;
+    gap: calc($spacing * 4);
+
+    h3 {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+        margin: 0;
+    }
+}
+
+.review-section-hint {
+    font-size: $font-size-small;
+    color: $color-purple-300;
+    margin: 0;
+}
+
+.review-star-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: calc($spacing * 4);
+}
+
+.review-score-text {
+    font-size: $font-size-small;
+    font-weight: $font-weight-semibold;
+    color: $color-purple-200;
+    min-width: 3.5rem;
+}
+
+// ── Track list ────────────────────────────────────────────────────────────────
+
+.review-track-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.review-track-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: calc($spacing * 3);
+    padding-block: calc($spacing * 3);
+    border-bottom: 1px solid color-mix(in oklab, $color-white 8%, transparent);
+
+    &:last-child {
+        border-bottom: none;
+    }
+}
+
+.review-track-num {
+    font-size: $font-size-xs;
+    color: $color-purple-400;
+    min-width: 1.5rem;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.review-track-name {
+    flex: 1;
+    font-size: $font-size-small;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.review-track-rating {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: calc($spacing * 2);
+    flex-shrink: 0;
+}
+
+.review-track-score-text {
+    font-size: $font-size-xs;
+    color: $color-purple-300;
+    min-width: 1rem;
+    text-align: center;
+}
+
+// ── Star rating widget ────────────────────────────────────────────────────────
+
+.star-rating {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: calc($spacing * 0.5);
+    line-height: 1;
+}
+
+.star-slot {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    cursor: pointer;
+
+    // ── star glyph ──────────────────────────────────────────────────────────
+    .star-bg {
+        position: relative;
+        font-size: 1.5rem;
+        line-height: 1;
+        color: $star-empty-color;     // dim: the unfilled portion
+        pointer-events: none;
+        user-select: none;
+
+        // Filled overlay: rendered on top via ::after with clip-path
+        &::after {
+            content: '★';
+            position: absolute;
+            left: 0;
+            top: 0;
+            color: $star-filled-color;
+            // Default: hidden – overridden per fill state below
+            clip-path: inset(0 100% 0 0);
+        }
+    }
+
+    &.star-full .star-bg::after {
+        clip-path: inset(0 0% 0 0);
+    }
+
+    &.star-half .star-bg::after {
+        clip-path: inset(0 50% 0 0);
+    }
+
+    // ── click zones ──────────────────────────────────────────────────────────
+    .star-half-zone {
+        position: absolute;
+        top: 0;
+        height: 100%;
+        width: 50%;
+        cursor: pointer;
+        z-index: 1;
+
+        &.star-half-left  { left: 0; }
+        &.star-half-right { right: 0; }
+    }
+}
+
+// Read-only: no cursor/click interactions
+.star-rating-readonly .star-slot {
+    cursor: default;
+
+    .star-half-zone {
+        display: none;
+    }
+}
