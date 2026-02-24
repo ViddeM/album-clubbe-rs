@@ -1,3 +1,4 @@
+use crate::SiteFooter;
 use api::api_models::HistoryEntry;
 use api::get_history;
 use dioxus::prelude::*;
@@ -59,10 +60,7 @@ pub fn History() -> Element {
                 }
             }
 
-            footer { class: "site-footer",
-                a { href: "/", "Startsida" }
-                a { href: "/admin", "Admin" }
-            }
+            SiteFooter {}
         }
     }
 }

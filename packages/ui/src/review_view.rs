@@ -1,11 +1,15 @@
 use std::collections::HashMap;
 
 use api::api_models::{AlbumTrack, Data, Reviews};
-use api::{get_album_tracks, get_current, get_reviews, submit_album_review, submit_track_review, verify_member};
+use api::{
+    get_album_tracks, get_current, get_reviews, submit_album_review, submit_track_review,
+    verify_member,
+};
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::fa_brands_icons::FaSpotify;
 use dioxus_free_icons::icons::fi_icons::FiExternalLink;
 use dioxus_free_icons::Icon;
+use crate::SiteFooter;
 
 const REVIEW_SCSS: Asset = asset!("/assets/styling/review.scss");
 
@@ -135,15 +139,11 @@ pub fn Review() -> Element {
                         if logged_in_as().is_none() {
                             div { class: "card review-login-card",
                                 h2 { "Logga in för att granska" }
-                                p { class: "review-login-hint",
-                                    "Välj ditt namn och ange ditt lösenord."
-                                }
+                                p { class: "review-login-hint", "Välj ditt namn och ange ditt lösenord." }
 
                                 div { class: "review-login-fields",
                                     div { class: "review-field",
-                                        label { class: "review-label", r#for: "review-member",
-                                            "Namn"
-                                        }
+                                        label { class: "review-label", r#for: "review-member", "Namn" }
                                         select {
                                             id: "review-member",
                                             value: "{member_name}",
@@ -168,9 +168,7 @@ pub fn Review() -> Element {
                                     }
 
                                     div { class: "review-field",
-                                        label { class: "review-label", r#for: "review-pw",
-                                            "Lösenord"
-                                        }
+                                        label { class: "review-label", r#for: "review-pw", "Lösenord" }
                                         input {
                                             id: "review-pw",
                                             r#type: "password",
@@ -219,11 +217,20 @@ pub fn Review() -> Element {
                                                 Ok(()) => {
                                                     // Pre-fill existing ratings
                                                     if let Some(Ok(ref rev)) = reviews() {
-                                                        if let Some(ar) = rev.album_reviews.iter().find(|r| r.member_name == *name) {
+                                                        if let Some(ar) = rev
+                                                            .album_reviews
+                                                            .iter()
+                                                            .find(|r| r.member_name == *name)
+                                                        {
                                                             album_rating.set(ar.score);
                                                         }
                                                         let mut map = HashMap::new();
-                                                        for tr in rev.track_reviews.iter().filter(|r| r.member_name == *name) {
+                                                        for tr in rev
+                                                            .track_reviews
+                                                            .iter()
+                                                            .filter(|r| r.member_name == *name)
+
+                                                        {
                                                             map.insert(tr.track_id.clone(), tr.score);
                                                         }
                                                         track_ratings.set(map);
@@ -262,9 +269,7 @@ pub fn Review() -> Element {
                                 // ── Album review ────────────────────────────
                                 div { class: "card review-section",
                                     h3 { "Albumbetyg" }
-                                    p { class: "review-section-hint",
-                                        "Ge albumet ett betyg från 0 till 10."
-                                    }
+                                    p { class: "review-section-hint", "Ge albumet ett betyg från 0 till 10." }
                                     div { class: "review-star-row",
                                         StarRating {
                                             score: album_rating(),
@@ -273,9 +278,7 @@ pub fn Review() -> Element {
                                                 album_submit.set(None);
                                             },
                                         }
-                                        span { class: "review-score-text",
-                                            "{album_rating()} / 10"
-                                        }
+                                        span { class: "review-score-text", "{album_rating()} / 10" }
                                     }
 
                                     button {
@@ -319,17 +322,13 @@ pub fn Review() -> Element {
                                         div { class: "review-tracks-loading", "Laddar låtar…" }
                                     },
                                     Some(Err(ref e)) => rsx! {
-                                        div { class: "review-error",
-                                            "Kunde inte ladda låtar: {e}"
-                                        }
+                                        div { class: "review-error", "Kunde inte ladda låtar: {e}" }
                                     },
                                     Some(Ok(ref track_list)) if track_list.is_empty() => rsx! {},
                                     Some(Ok(ref track_list)) => rsx! {
                                         div { class: "card review-section",
                                             h3 { "Låtbetyg" }
-                                            p { class: "review-section-hint",
-                                                "Sätt ett betyg för varje låt."
-                                            }
+                                            p { class: "review-section-hint", "Sätt ett betyg för varje låt." }
 
                                             div { class: "review-track-list",
                                                 for track in track_list.iter() {
@@ -337,9 +336,9 @@ pub fn Review() -> Element {
                                                         key: "{track.track_id}",
                                                         track: track.clone(),
                                                         score: track_ratings()
-                                                            .get(&track.track_id)
-                                                            .copied()
-                                                            .unwrap_or(0),
+                                                                                                                                                                            .get(&track.track_id)
+                                                                                                                                                                            .copied()
+                                                                                                                                                                            .unwrap_or(0),
                                                         on_change: {
                                                             let tid = track.track_id.clone();
                                                             move |s: u8| {
@@ -362,13 +361,13 @@ pub fn Review() -> Element {
                                                     spawn(async move {
                                                         for (tid, score) in ratings.iter() {
                                                             if let Err(e) = submit_track_review(
-                                                                name.clone(),
-                                                                pw.clone(),
-                                                                mid.clone(),
-                                                                tid.clone(),
-                                                                *score,
-                                                            )
-                                                            .await
+                                                                    name.clone(),
+                                                                    pw.clone(),
+                                                                    mid.clone(),
+                                                                    tid.clone(),
+                                                                    *score,
+                                                                )
+                                                                .await
                                                             {
                                                                 track_submit.set(Some(Err(e.to_string())));
                                                                 return;
@@ -386,9 +385,7 @@ pub fn Review() -> Element {
                                             if let Some(ref result) = track_submit() {
                                                 match result {
                                                     Ok(()) => rsx! {
-                                                        p { class: "review-success",
-                                                            "✓ Låtbetyg sparade!"
-                                                        }
+                                                        p { class: "review-success", "✓ Låtbetyg sparade!" }
                                                     },
                                                     Err(e) => rsx! {
                                                         p { class: "review-error", "Fel: {e}" }
@@ -404,11 +401,7 @@ pub fn Review() -> Element {
                 }
             }
 
-            footer { class: "site-footer",
-                a { href: "/", "Startsida" }
-                a { href: "/history", "Historik" }
-                a { href: "/admin", "Admin" }
-            }
+            SiteFooter {}
         }
     }
 }
@@ -438,9 +431,7 @@ fn AggregateScores(reviews: Reviews, tracks: Vec<AlbumTrack>) -> Element {
                 div { class: "review-aggregate-album",
                     span { class: "review-aggregate-label", "Album" }
                     AverageStars { avg }
-                    span { class: "review-aggregate-num",
-                        {format!("{:.1} / 10", avg)}
-                    }
+                    span { class: "review-aggregate-num", {format!("{:.1} / 10", avg)} }
                     span { class: "review-aggregate-count",
                         {format!("({} röster)", reviews.album_reviews.len())}
                     }
@@ -473,12 +464,8 @@ fn AggregateScores(reviews: Reviews, tracks: Vec<AlbumTrack>) -> Element {
                                         span { class: "review-track-num", "{num}" }
                                         span { class: "review-track-name", "{name}" }
                                         AverageStars { avg }
-                                        span { class: "review-aggregate-num",
-                                            {format!("{:.1}", avg)}
-                                        }
-                                        span { class: "review-aggregate-count",
-                                            "({count})"
-                                        }
+                                        span { class: "review-aggregate-num", {format!("{:.1}", avg)} }
+                                        span { class: "review-aggregate-count", "({count})" }
                                     }
                                 }
                             }
@@ -495,22 +482,19 @@ fn AggregateScores(reviews: Reviews, tracks: Vec<AlbumTrack>) -> Element {
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[component]
-fn TrackRatingRow(
-    track: AlbumTrack,
-    score: u8,
-    on_change: EventHandler<u8>,
-) -> Element {
+fn TrackRatingRow(track: AlbumTrack, score: u8, on_change: EventHandler<u8>) -> Element {
     rsx! {
         div { class: "review-track-row",
             span { class: "review-track-num", "{track.track_number}" }
             span { class: "review-track-name", "{track.track_name}" }
             div { class: "review-track-rating",
-                StarRating {
-                    score,
-                    on_change,
-                }
+                StarRating { score, on_change }
                 span { class: "review-track-score-text",
-                    if score == 0 { "–" } else { "{score}" }
+                    if score == 0 {
+                        "–"
+                    } else {
+                        "{score}"
+                    }
                 }
             }
         }
@@ -613,9 +597,7 @@ fn AverageStars(avg: f32) -> Element {
                         "empty"
                     };
                     rsx! {
-                        div {
-                            key: "{star}",
-                            class: "star-slot star-{fill}",
+                        div { key: "{star}", class: "star-slot star-{fill}",
                             span { class: "star-bg", "★" }
                         }
                     }

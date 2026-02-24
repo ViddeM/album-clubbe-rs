@@ -1,5 +1,6 @@
 use api::api_models::{Album, Data, Meeting, Name};
 
+use crate::SiteFooter;
 use api::get_current;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::fa_brands_icons::FaSpotify;
@@ -39,11 +40,7 @@ pub fn Main() -> Element {
                 div { "Laddar..." }
             }
 
-            footer { class: "site-footer",
-                a { href: "/history", "Historik" }
-                a { href: "/review", "Granska" }
-                a { href: "/admin", "Admin" }
-            }
+            SiteFooter {}
         }
     }
 }

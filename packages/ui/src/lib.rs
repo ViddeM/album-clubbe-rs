@@ -18,3 +18,16 @@ pub fn Setup() -> Element {
         document::Link { rel: "stylesheet", href: GLOBAL_SCSS }
     }
 }
+
+/// Shared navigation footer rendered on every page.
+#[component]
+pub fn SiteFooter() -> Element {
+    rsx! {
+        footer { class: "site-footer",
+            a { href: "/", "Startsida" }
+            a { href: "/history", "Historik" }
+            a { href: "/review", "Granska" }
+            a { href: "/admin", "Admin" }
+        }
+    }
+}

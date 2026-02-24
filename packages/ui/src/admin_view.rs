@@ -1,3 +1,4 @@
+use crate::SiteFooter;
 use api::admin_delete_history_entry;
 use api::admin_reorder_members;
 use api::admin_set_current;
@@ -6,6 +7,7 @@ use api::admin_spotify_album_search;
 use api::admin_update_current;
 use api::api_models::{Data, HistoryEntry, SpotifyAlbumSearchItem};
 use api::{get_current, get_history};
+use dioxus::document::eval;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::fi_icons::FiTrash2;
 use dioxus_free_icons::Icon;
@@ -57,6 +59,7 @@ pub fn Admin() -> Element {
     // Passwords tab
     let mut pw_member = use_signal(String::new);
     let mut pw_result = use_signal(|| None::<Result<String, String>>);
+    let mut pw_copied = use_signal(|| false);
 
     // Load members on mount via the info endpoint.
     use_future(move || async move {
@@ -132,7 +135,7 @@ pub fn Admin() -> Element {
             }
 
             // ── Tab: Nytt album ─────────────────────────────────────────────
-            if active_tab() == AdminTab::Album {                // ── Edit current banner ──────────────────────────────────────
+            if active_tab() == AdminTab::Album {
                 if let Some(data) = current_data() {
                     if data.current_album.is_some() {
                         div { class: "card admin-section admin-edit-current-section",
@@ -161,29 +164,28 @@ pub fn Admin() -> Element {
                                     onclick: move |_| {
                                         if let Some(data) = current_data() {
                                             if let Some(album) = &data.current_album {
-                                                selected_album.set(Some(SpotifyAlbumSearchItem {
-                                                    id: album.id.clone(),
-                                                    name: album.name.clone(),
-                                                    artists: album.artist.clone(),
-                                                    image_url: if album.album_art.is_empty() {
-                                                        None
-                                                    } else {
-                                                        Some(album.album_art.clone())
-                                                    },
-                                                    spotify_url: album.spotify_url.clone(),
-                                                }));
+                                                selected_album
+                                                    .set(
+                                                        Some(SpotifyAlbumSearchItem {
+                                                            id: album.id.clone(),
+                                                            name: album.name.clone(),
+                                                            artists: album.artist.clone(),
+                                                            image_url: if album.album_art.is_empty() {
+                                                                None
+                                                            } else {
+                                                                Some(album.album_art.clone())
+                                                            },
+                                                            spotify_url: album.spotify_url.clone(),
+                                                        }),
+                                                    );
                                             }
                                             if let Some(person) = &data.current_person {
                                                 picker.set(person.to_string());
                                             }
                                             if let Some(meeting) = &data.next_meeting {
                                                 meeting_date.set(meeting.date.clone());
-                                                meeting_time_val
-                                                    .set(meeting.time.clone().unwrap_or_default());
-                                                meeting_location
-                                                    .set(
-                                                        meeting.location.clone().unwrap_or_default(),
-                                                    );
+                                                meeting_time_val.set(meeting.time.clone().unwrap_or_default());
+                                                meeting_location.set(meeting.location.clone().unwrap_or_default());
                                             }
                                         }
                                         is_editing_current.set(true);
@@ -471,7 +473,11 @@ pub fn Admin() -> Element {
                                 submit_state.set(Some(result));
                             });
                         },
-                        if is_editing_current() { "Uppdatera" } else { "Spara" }
+                        if is_editing_current() {
+                            "Uppdatera"
+                        } else {
+                            "Spara"
+                        }
                     }
 
                     if let Some(result) = submit_state() {
@@ -664,26 +670,76 @@ pub fn Admin() -> Element {
                         "Generera lösenord"
                     }
 
-                    if let Some(result) = pw_result() {
-                        match result {
-                            Ok(plain) => rsx! {
-                                div { class: "admin-pw-result",
-                                    p { class: "admin-success", "✓ Lösenord genererat!" }
-                                    p { class: "admin-hint", "Kopiera och dela med medlemmen:" }
-                                    code { class: "admin-pw-code", "{plain}" }
+                    if let Some(Err(ref e)) = pw_result() {
+                        p { class: "admin-error", "Fel: {e}" }
+                    }
+                }
+            }
+
+            // ── Password modal ───────────────────────────────────────────────
+            if let Some(Ok(ref plain)) = pw_result() {
+                div {
+                    class: "admin-pw-modal-backdrop",
+                    onclick: move |_| {
+                        pw_result.set(None);
+                        pw_copied.set(false);
+                    },
+                    div {
+                        class: "admin-pw-modal",
+                        onclick: move |e| e.stop_propagation(),
+
+                        div { class: "admin-pw-modal-header",
+                            h2 { "Lösenord genererat" }
+                            p { class: "admin-pw-modal-member",
+                                "för "
+                                strong { "{pw_member()}" }
+                            }
+                        }
+
+                        div { class: "admin-pw-modal-code-wrap",
+                            code { class: "admin-pw-code", "{plain}" }
+                            button {
+                                class: if pw_copied() { "admin-button admin-pw-copy-btn admin-pw-copy-btn--done" } else { "admin-button admin-pw-copy-btn" },
+                                onclick: {
+                                    let text = plain.clone();
+                                    move |_| {
+                                        let text = text.clone();
+                                        spawn(async move {
+                                            let _ = eval(&format!("navigator.clipboard.writeText('{text}')")).await;
+                                            pw_copied.set(true);
+                                        });
+                                    }
+                                },
+                                if pw_copied() {
+                                    "✓ Kopierat"
+                                } else {
+                                    "Kopiera"
                                 }
+                            }
+                        }
+
+                        div { class: "admin-pw-modal-warning",
+                            span { class: "admin-pw-warning-icon", "⚠" }
+                            p {
+                                "Det här lösenordet visas bara en gång och "
+                                strong { "kan inte återskapas" }
+                                ". Dela det med medlemmen innan du stänger."
+                            }
+                        }
+
+                        button {
+                            class: "admin-button admin-pw-modal-close",
+                            onclick: move |_| {
+                                pw_result.set(None);
+                                pw_copied.set(false);
                             },
-                            Err(e) => rsx! {
-                                p { class: "admin-error", "Fel: {e}" }
-                            },
+                            "Stäng"
                         }
                     }
                 }
             }
 
-            footer { class: "site-footer",
-                a { href: "/", "Tillbaka till startsidan" }
-            }
+            SiteFooter {}
         }
     }
 }
