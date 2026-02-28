@@ -1,11 +1,8 @@
 use std::collections::HashMap;
 
 use crate::SiteFooter;
-use api::api_models::{AlbumTrack, Data, Reviews};
-use api::{
-    get_album_tracks, get_current, get_reviews, submit_album_review, submit_track_review,
-    verify_member,
-};
+use api::api_models::{Album, AlbumTrack, Data, Name, Reviews};
+use api::{get_album_tracks, get_current, get_reviews, submit_album_review, verify_member};
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::fa_brands_icons::FaSpotify;
 use dioxus_free_icons::icons::fi_icons::FiExternalLink;
@@ -24,11 +21,11 @@ pub fn Review() -> Element {
     let mut reviews = use_signal(|| None::<Result<Reviews, String>>);
 
     // Current meeting ID stored as a signal so closures can capture it.
-    let mut current_meeting_id: Signal<String> = use_signal(String::new);
+    let mut meeting_id: Signal<String> = use_signal(String::new);
 
     // Auth state
-    let mut member_name = use_signal(String::new);
-    let mut password = use_signal(String::new);
+    let member_name = use_signal(String::new);
+    let password = use_signal(String::new);
     let mut logged_in_as = use_signal(|| None::<String>);
     let mut login_error = use_signal(|| None::<String>);
 
@@ -39,6 +36,35 @@ pub fn Review() -> Element {
     // Submit states
     let mut album_submit = use_signal(|| None::<Result<(), String>>);
     let mut track_submit = use_signal(|| None::<Result<(), String>>);
+
+    let perform_login = use_callback(move |_: ()| {
+        let name = member_name();
+        let pw = password();
+        login_error.set(None);
+        spawn(async move {
+            match verify_member(name.clone(), pw).await {
+                Ok(()) => {
+                    // Pre-fill existing ratings
+                    if let Some(Ok(ref rev)) = reviews() {
+                        if let Some(ar) = rev.album_reviews.iter().find(|r| r.member_name == *name)
+                        {
+                            album_rating.set(ar.score);
+                        }
+                        let mut map = HashMap::new();
+                        for tr in rev.track_reviews.iter().filter(|r| r.member_name == *name) {
+                            map.insert(tr.track_id.clone(), tr.score);
+                        }
+                        track_ratings.set(map);
+                    }
+                    logged_in_as.set(Some(name));
+                    login_error.set(None);
+                }
+                Err(e) => {
+                    login_error.set(Some(e.to_string()));
+                }
+            }
+        });
+    });
 
     // Load current album on mount
     use_future(move || async move {
@@ -53,7 +79,7 @@ pub fn Review() -> Element {
             .ok()
             .and_then(|d| d.current_meeting_id.clone())
             .unwrap_or_default();
-        current_meeting_id.set(mid.clone());
+        meeting_id.set(mid.clone());
         page_data.set(Some(data));
 
         // Load tracks and reviews if we have an album
@@ -97,35 +123,7 @@ pub fn Review() -> Element {
                     let members = data.members.clone();
 
                     rsx! {
-                        // ── Album info ──────────────────────────────────────
-                        div { class: "card review-album-card",
-                            div { class: "review-album-art-wrap",
-                                img {
-                                    class: "review-album-art",
-                                    src: "{album.album_art}",
-                                    alt: "{album.name} album cover",
-                                }
-                            }
-                            div { class: "review-album-info",
-                                h2 { class: "review-album-name", "{album.name}" }
-                                p { class: "review-album-artist", "{album.artist}" }
-                                if let Some(ref picker) = data.current_person {
-                                    p { class: "review-album-picker",
-                                        "Vald av "
-                                        span { class: "review-album-picker-name", "{picker}" }
-                                    }
-                                }
-                                a {
-                                    href: "{album.spotify_url}",
-                                    target: "_blank",
-                                    rel: "noopener noreferrer",
-                                    class: "review-spotify-link gap-2",
-                                    Icon { icon: FaSpotify }
-                                    "Lyssna"
-                                    Icon { icon: FiExternalLink }
-                                }
-                            }
-                        }
+                        CurrentAlbumView { album, picked_by: data.current_person }
 
                         // ── Aggregate scores ────────────────────────────────
                         if let Some(Ok(ref rev)) = reviews() {
@@ -137,210 +135,30 @@ pub fn Review() -> Element {
 
                         // ── Login ───────────────────────────────────────────
                         if logged_in_as().is_none() {
-                            div { class: "card review-login-card",
-                                h2 { "Logga in för att recensera" }
-                                p { class: "review-login-hint", "Välj ditt namn och ange ditt lösenord." }
-
-                                div { class: "review-login-fields",
-                                    div { class: "review-field",
-                                        label { class: "review-label", r#for: "review-member", "Namn" }
-                                        select {
-                                            id: "review-member",
-                                            value: "{member_name}",
-                                            onchange: move |e| {
-                                                member_name.set(e.value());
-                                                login_error.set(None);
-                                            },
-                                            option {
-                                                value: "",
-                                                disabled: true,
-                                                selected: member_name().is_empty(),
-                                                "Välj…"
-                                            }
-                                            for m in members.iter() {
-                                                option {
-                                                    value: "{m}",
-                                                    selected: member_name() == m.as_ref(),
-                                                    "{m}"
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    div { class: "review-field",
-                                        label { class: "review-label", r#for: "review-pw", "Lösenord" }
-                                        input {
-                                            id: "review-pw",
-                                            r#type: "password",
-                                            placeholder: "Ditt lösenord",
-                                            value: "{password}",
-                                            oninput: move |e| {
-                                                password.set(e.value());
-                                                login_error.set(None);
-                                            },
-                                            onkeydown: move |e| {
-                                                if e.key() == Key::Enter {
-                                                    let name = member_name();
-                                                    let pw = password();
-                                                    if !name.is_empty() && !pw.is_empty() {
-                                                        spawn(async move {
-                                                            match verify_member(name.clone(), pw).await {
-                                                                Ok(()) => {
-                                                                    logged_in_as.set(Some(name));
-                                                                    login_error.set(None);
-                                                                }
-                                                                Err(e) => {
-                                                                    login_error.set(Some(e.to_string()));
-                                                                }
-                                                            }
-                                                        });
-                                                    }
-                                                }
-                                            },
-                                        }
-                                    }
-                                }
-
-                                if let Some(err) = login_error() {
-                                    p { class: "review-error", "{err}" }
-                                }
-
-                                button {
-                                    class: "review-button",
-                                    disabled: member_name().is_empty() || password().is_empty(),
-                                    onclick: move |_| {
-                                        let name = member_name();
-                                        let pw = password();
-                                        login_error.set(None);
-                                        spawn(async move {
-                                            match verify_member(name.clone(), pw).await {
-                                                Ok(()) => {
-                                                    // Pre-fill existing ratings
-                                                    if let Some(Ok(ref rev)) = reviews() {
-                                                        if let Some(ar) = rev
-                                                            .album_reviews
-                                                            .iter()
-                                                            .find(|r| r.member_name == *name)
-                                                        {
-                                                            album_rating.set(ar.score);
-                                                        }
-                                                        let mut map = HashMap::new();
-                                                        for tr in rev
-                                                            .track_reviews
-                                                            .iter()
-                                                            .filter(|r| r.member_name == *name)
-
-                                                        {
-                                                            map.insert(tr.track_id.clone(), tr.score);
-                                                        }
-                                                        track_ratings.set(map);
-                                                    }
-                                                    logged_in_as.set(Some(name));
-                                                    login_error.set(None);
-                                                }
-                                                Err(e) => {
-                                                    login_error.set(Some(e.to_string()));
-                                                }
-                                            }
-                                        });
-                                    },
-                                    "Logga in"
-                                }
+                            ReviewLoginView {
+                                logged_in_as,
+                                member_name,
+                                password,
+                                login_error,
+                                members,
+                                reviews,
+                                perform_login,
                             }
                         }
 
                         // ── Review form (shown when logged in) ──────────────
                         if let Some(logged_name) = logged_in_as() {
-                            div { class: "review-form-container",
-                                div { class: "review-logged-banner",
-                                    span { "Inloggad som " }
-                                    strong { "{logged_name}" }
-                                    button {
-                                        class: "review-logout-btn",
-                                        onclick: move |_| {
-                                            logged_in_as.set(None);
-                                            album_submit.set(None);
-                                            track_submit.set(None);
-                                        },
-                                        "Logga ut"
-                                    }
-                                }
-
-                                // ── Album review ────────────────────────────
-                                div { class: "card review-section",
-                                    h3 { "Albumbetyg" }
-                                    p { class: "review-section-hint", "Ge albumet ett betyg från 0 till 10." }
-                                    div { class: "review-star-row",
-                                        StarRating {
-                                            score: album_rating(),
-                                            on_change: move |s| {
-                                                album_rating.set(s);
-                                                album_submit.set(None);
-                                                let name = logged_in_as().unwrap_or_default();
-                                                let pw = password();
-                                                let mid = current_meeting_id();
-                                                spawn(async move {
-                                                    let result = submit_album_review(name, pw, mid.clone(), s)
-                                                        .await
-                                                        .map_err(|e| e.to_string());
-                                                    if result.is_ok() {
-                                                        if let Ok(fresh) = get_reviews(mid).await {
-                                                            reviews.set(Some(Ok(fresh)));
-                                                        }
-                                                    } else {
-                                                        album_submit.set(Some(result));
-                                                    }
-                                                });
-                                            },
-                                        }
-                                        span { class: "review-score-text", "{album_rating()} / 10" }
-                                    }
-
-                                    if let Some(Err(ref e)) = album_submit() {
-                                        p { class: "review-error", "Fel: {e}" }
-                                    }
-                                }
-
-                                // ── Track reviews ────────────────────────────
-                                match tracks() {
-                                    None => rsx! {
-                                        div { class: "review-tracks-loading", "Laddar låtar…" }
-                                    },
-                                    Some(Err(ref e)) => rsx! {
-                                        div { class: "review-error", "Kunde inte ladda låtar: {e}" }
-                                    },
-                                    Some(Ok(ref track_list)) if track_list.is_empty() => rsx! {},
-                                    Some(Ok(ref track_list)) => rsx! {
-                                        div { class: "card review-section",
-                                            h3 { "Låtbetyg" }
-                                            p { class: "review-section-hint", "Sätt ett betyg för varje låt." }
-
-                                            div { class: "review-track-list",
-                                                for track in track_list.iter() {
-                                                    TrackRatingRow {
-                                                        key: "{track.track_id}",
-                                                        track: track.clone(),
-                                                        score: track_ratings()
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            .get(&track.track_id)
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            .copied()
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            .unwrap_or(0),
-                                                        on_change: {
-                                                            let tid = track.track_id.clone();
-                                                            move |s: u8| {
-                                                                track_ratings.write().insert(tid.clone(), s);
-                                                                track_submit.set(None);
-                                                            }
-                                                        },
-                                                    }
-                                                }
-                                            }
-
-                                            if let Some(Err(ref e)) = track_submit() {
-                                                p { class: "review-error", "Fel: {e}" }
-                                            }
-                                        }
-                                    },
-                                }
+                            ReviewLoggedInView {
+                                logged_name,
+                                logged_in_as,
+                                album_rating,
+                                album_submit,
+                                track_submit,
+                                password,
+                                reviews,
+                                tracks,
+                                track_ratings,
+                                meeting_id,
                             }
                         }
                     }
@@ -352,28 +170,64 @@ pub fn Review() -> Element {
     }
 }
 
+#[component]
+fn CurrentAlbumView(album: ReadSignal<Album>, picked_by: ReadSignal<Option<Name>>) -> Element {
+    rsx! {
+        // ── Album info ──────────────────────────────────────
+        div { class: "card review-album-card",
+            div { class: "review-album-art-wrap",
+                img {
+                    class: "review-album-art",
+                    src: "{album().album_art}",
+                    alt: "{album().name} album cover",
+                }
+            }
+            div { class: "review-album-info",
+                h2 { class: "review-album-name", "{album().name}" }
+                p { class: "review-album-artist", "{album().artist}" }
+                if let Some(ref picker) = picked_by() {
+                    p { class: "review-album-picker",
+                        "Vald av "
+                        span { class: "review-album-picker-name", "{picker}" }
+                    }
+                }
+                a {
+                    href: "{album().spotify_url}",
+                    target: "_blank",
+                    rel: "noopener noreferrer",
+                    class: "review-spotify-link gap-2",
+                    Icon { icon: FaSpotify }
+                    "Lyssna"
+                    Icon { icon: FiExternalLink }
+                }
+            }
+        }
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Aggregate scores (read-only)
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[component]
-fn AggregateScores(reviews: Reviews, tracks: Vec<AlbumTrack>) -> Element {
-    if reviews.album_reviews.is_empty() && reviews.track_reviews.is_empty() && tracks.is_empty() {
+fn AggregateScores(reviews: ReadSignal<Reviews>, tracks: ReadSignal<Vec<AlbumTrack>>) -> Element {
+    if reviews().album_reviews.is_empty() && reviews().track_reviews.is_empty() && tracks.is_empty()
+    {
         return rsx! {};
     }
 
-    let album_avg = if reviews.album_reviews.is_empty() {
+    let album_avg = if reviews().album_reviews.is_empty() {
         None
     } else {
-        let sum: u32 = reviews.album_reviews.iter().map(|r| r.score as u32).sum();
-        Some(sum as f32 / reviews.album_reviews.len() as f32)
+        let sum: u32 = reviews().album_reviews.iter().map(|r| r.score as u32).sum();
+        Some(sum as f32 / reviews().album_reviews.len() as f32)
     };
 
     // Build per-track averages; always sorted by track number.
-    let mut track_data: Vec<(AlbumTrack, Option<f32>, usize)> = tracks
+    let mut track_data: Vec<(AlbumTrack, Option<f32>, usize)> = tracks()
         .into_iter()
         .map(|track| {
-            let scores: Vec<u8> = reviews
+            let scores: Vec<u8> = reviews()
                 .track_reviews
                 .iter()
                 .filter(|r| r.track_id == track.track_id)
@@ -399,9 +253,9 @@ fn AggregateScores(reviews: Reviews, tracks: Vec<AlbumTrack>) -> Element {
                 div { class: "review-aggregate-album",
                     span { class: "review-aggregate-label", "Album" }
                     AverageStars { avg }
-                    span { class: "review-aggregate-num", {format!("{:.1} / 10", avg)} }
+                    span { class: "review-aggregate-num", {format!("{:.1} / 5.0", (avg as f32) / 2.0)} }
                     span { class: "review-aggregate-count",
-                        {format!("({} röster)", reviews.album_reviews.len())}
+                        {format!("({} röster)", reviews().album_reviews.len())}
                     }
                 }
             }
@@ -586,6 +440,202 @@ fn AverageStars(avg: f32, #[props(default = false)] placeholder: bool) -> Elemen
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+#[component]
+fn ReviewLoginView(
+    logged_in_as: Signal<Option<String>>,
+    member_name: Signal<String>,
+    password: Signal<String>,
+    login_error: Signal<Option<String>>,
+    members: ReadSignal<Vec<Name>>,
+    reviews: ReadSignal<Option<Result<Reviews, String>>>,
+    perform_login: Callback<()>,
+) -> Element {
+    rsx! {
+        div { class: "card review-login-card",
+            h2 { "Logga in för att recensera" }
+            p { class: "review-login-hint", "Välj ditt namn och ange ditt lösenord." }
+
+            div { class: "review-login-fields",
+                div { class: "review-field",
+                    label { class: "review-label", r#for: "review-member", "Namn" }
+                    select {
+                        id: "review-member",
+                        value: "{member_name}",
+                        onchange: move |e| {
+                            member_name.set(e.value());
+                            login_error.set(None);
+                        },
+                        option {
+                            value: "",
+                            disabled: true,
+                            selected: member_name().is_empty(),
+                            "Välj…"
+                        }
+                        for m in members.iter() {
+                            option {
+                                value: "{m}",
+                                selected: member_name() == m.as_ref(),
+                                "{m}"
+                            }
+                        }
+                    }
+                }
+
+                div { class: "review-field",
+                    label { class: "review-label", r#for: "review-pw", "Lösenord" }
+                    input {
+                        id: "review-pw",
+                        r#type: "password",
+                        placeholder: "Ditt lösenord",
+                        value: "{password}",
+                        oninput: move |e| {
+                            password.set(e.value());
+                            login_error.set(None);
+                        },
+                        onkeydown: move |e| {
+                            if e.key() == Key::Enter {
+                                let name = member_name();
+                                let pw = password();
+                                if !name.is_empty() && !pw.is_empty() {
+                                    spawn(async move {
+                                        match verify_member(name.clone(), pw).await {
+                                            Ok(()) => {
+                                                logged_in_as.set(Some(name));
+                                                login_error.set(None);
+                                            }
+                                            Err(e) => {
+                                                login_error.set(Some(e.to_string()));
+                                            }
+                                        }
+                                    });
+                                }
+                            }
+                        },
+                    }
+                }
+            }
+
+            if let Some(err) = login_error() {
+                p { class: "review-error", "{err}" }
+            }
+
+            button {
+                class: "review-button",
+                disabled: member_name().is_empty() || password().is_empty(),
+                onclick: move |_| perform_login(()),
+                "Logga in"
+            }
+        }
+    }
+}
+
+#[component]
+fn ReviewLoggedInView(
+    logged_name: ReadSignal<String>,
+    logged_in_as: Signal<Option<String>>,
+    album_rating: Signal<u8>,
+    album_submit: Signal<Option<Result<(), String>>>,
+    track_submit: Signal<Option<Result<(), String>>>,
+    password: ReadSignal<String>,
+    meeting_id: ReadSignal<String>,
+    reviews: Signal<Option<Result<Reviews, String>>>,
+    tracks: Signal<Option<Result<Vec<AlbumTrack>, String>>>,
+    track_ratings: Signal<HashMap<String, u8>>,
+) -> Element {
+    rsx! {
+        div { class: "review-form-container",
+            div { class: "review-logged-banner",
+                span { "Inloggad som " }
+                strong { "{logged_name}" }
+                button {
+                    class: "review-logout-btn",
+                    onclick: move |_| {
+                        logged_in_as.set(None);
+                        album_submit.set(None);
+                        track_submit.set(None);
+                    },
+                    "Logga ut"
+                }
+            }
+
+            // ── Album review ────────────────────────────
+            div { class: "card review-section",
+                h3 { "Albumbetyg" }
+                p { class: "review-section-hint", "Ge albumet ett betyg från 0 till 10." }
+                div { class: "review-star-row",
+                    StarRating {
+                        score: album_rating(),
+                        on_change: move |s| {
+                            album_rating.set(s);
+                            album_submit.set(None);
+
+                            let name = logged_in_as().unwrap_or_default();
+                            let pw = password();
+                            let mid = meeting_id();
+
+                            spawn(async move {
+                                let result = submit_album_review(name, pw, mid.clone(), s)
+                                    .await
+                                    .map_err(|e| e.to_string());
+                                if result.is_ok() {
+                                    if let Ok(fresh) = get_reviews(mid).await {
+                                        reviews.set(Some(Ok(fresh)));
+                                    }
+                                }
+                                album_submit.set(Some(result));
+
+                            });
+                        },
+                    }
+                    span { class: "review-score-text", "{album_rating()} / 10" }
+                }
+
+                if let Some(Err(ref e)) = album_submit() {
+                    p { class: "review-error", "Fel: {e}" }
+                }
+            }
+
+            // ── Track reviews ────────────────────────────
+            match tracks() {
+                None => rsx! {
+                    div { class: "review-tracks-loading", "Laddar låtar…" }
+                },
+                Some(Err(ref e)) => rsx! {
+                    div { class: "review-error", "Kunde inte ladda låtar: {e}" }
+                },
+                Some(Ok(ref track_list)) if track_list.is_empty() => rsx! {},
+                Some(Ok(ref track_list)) => rsx! {
+                    div { class: "card review-section",
+                        h3 { "Låtbetyg" }
+                        p { class: "review-section-hint", "Sätt ett betyg för varje låt." }
+
+                        div { class: "review-track-list",
+                            for track in track_list.iter() {
+                                TrackRatingRow {
+                                    key: "{track.track_id}",
+                                    track: track.clone(),
+                                    score: track_ratings().get(&track.track_id).copied().unwrap_or(0),
+                                    on_change: {
+                                        let tid = track.track_id.clone();
+                                        move |s: u8| {
+                                            track_ratings.write().insert(tid.clone(), s);
+                                            track_submit.set(None);
+                                        }
+                                    },
+                                }
+                            }
+                        }
+
+                        if let Some(Err(ref e)) = track_submit() {
+                            p { class: "review-error", "Fel: {e}" }
+                        }
+                    }
+                },
             }
         }
     }
