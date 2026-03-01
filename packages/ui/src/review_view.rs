@@ -34,8 +34,8 @@ pub fn Review() -> Element {
     let mut track_ratings: Signal<HashMap<String, u8>> = use_signal(HashMap::new);
 
     // Submit states
-    let mut album_submit = use_signal(|| None::<Result<(), String>>);
-    let mut track_submit = use_signal(|| None::<Result<(), String>>);
+    let album_submit = use_signal(|| None::<Result<(), String>>);
+    let track_submit = use_signal(|| None::<Result<(), String>>);
 
     let perform_login = use_callback(move |_: ()| {
         let name = member_name();
@@ -253,7 +253,7 @@ fn AggregateScores(reviews: ReadSignal<Reviews>, tracks: ReadSignal<Vec<AlbumTra
                 div { class: "review-aggregate-album",
                     span { class: "review-aggregate-label", "Album" }
                     AverageStars { avg }
-                    span { class: "review-aggregate-num", {format!("{:.1} / 5.0", (avg as f32) / 2.0)} }
+                    span { class: "review-aggregate-num", {format!("{:.1} / 10", avg)} }
                     span { class: "review-aggregate-count",
                         {format!("({} röster)", reviews().album_reviews.len())}
                     }
@@ -411,7 +411,7 @@ fn StarRating(score: u8, on_change: EventHandler<u8>) -> Element {
 
 #[component]
 fn AverageStars(avg: f32, #[props(default = false)] placeholder: bool) -> Element {
-    // Round to nearest integer on the 0–10 scale (each integer = one half-star)
+    // Round to nearest integer on the 1–10 scale (each integer = one half-star)
     let display_score = avg.round() as u8;
     let class = if placeholder {
         "star-rating star-rating-readonly star-rating-placeholder"
@@ -566,7 +566,7 @@ fn ReviewLoggedInView(
             // ── Album review ────────────────────────────
             div { class: "card review-section",
                 h3 { "Albumbetyg" }
-                p { class: "review-section-hint", "Ge albumet ett betyg från 0 till 10." }
+                p { class: "review-section-hint", "Ge albumet ett betyg från 1 till 10." }
                 div { class: "review-star-row",
                     StarRating {
                         score: album_rating(),
