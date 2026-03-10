@@ -305,6 +305,7 @@ fn PerformReviewView(
         ReviewLoggedInView {
             logged_in_as,
             reviews,
+            tracks,
             review_album,
             review_track,
             logout,

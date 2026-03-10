@@ -1,4 +1,5 @@
 use api::api_models::{AlbumTrack, Reviews};
+use std::collections::HashMap;
 use dioxus::{core::EventHandler, prelude::*};
 use dioxus_free_icons::{icons::fa_brands_icons::FaSpotify, Icon};
 
@@ -6,6 +7,7 @@ use dioxus_free_icons::{icons::fa_brands_icons::FaSpotify, Icon};
 pub fn ReviewLoggedInView(
     logged_in_as: ReadSignal<String>,
     reviews: ReadSignal<Reviews>,
+    tracks: ReadSignal<Vec<AlbumTrack>>,
     review_album: Callback<u8, ()>,
     review_track: Callback<(String, u8), ()>,
     logout: Callback<(), ()>,
@@ -41,6 +43,17 @@ pub fn ReviewLoggedInView(
             .find(|r| r.member_name == logged_in_as())
             .expect("Current album to exist")
             .score
+    });
+
+    // Pre-fill existing per-track ratings for this member
+    let track_ratings = use_memo(move || {
+        let mut map: HashMap<String, u8> = HashMap::new();
+
+        for tr in reviews().track_reviews.iter().filter(|r| r.member_name == logged_in_as()) {
+            map.insert(tr.track_id.clone(), tr.score);
+        }
+
+        map
     });
 
     // let review_track = use_callback(move |(name, password, meeting_id, track_id, review)| {
@@ -89,6 +102,33 @@ pub fn ReviewLoggedInView(
                 }
 
                 if let Some(e) = album_review_error() {
+                    p { class: "review-error", "Fel: {e}" }
+                }
+            }
+
+            // ── Track reviews ────────────────────────────
+            div { class: "card review-section",
+                h3 { "Låtbetyg" }
+                p { class: "review-section-hint", "Sätt ett betyg för varje låt." }
+
+                div { class: "review-track-list",
+                    for track in tracks().iter() {
+                        TrackRatingRow {
+                            key: "{track.track_id}",
+                            track: track.clone(),
+                            score: *track_ratings().get(&track.track_id).unwrap_or(&0),
+                            on_change: {
+                                let tid = track.track_id.clone();
+                                move |s| {
+                                    reset_errors(());
+                                    review_track((tid.clone(), s));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if let Some(e) = track_review_error() {
                     p { class: "review-error", "Fel: {e}" }
                 }
             }
