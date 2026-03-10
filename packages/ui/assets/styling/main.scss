@@ -327,4 +327,25 @@
     margin-top: $spacing;
 }
 
+// ── Album score on main page ───────────────────────────────────────────────
+
+.main-album-score {
+    display: flex;
+    align-items: center;
+    gap: calc($spacing * 2);
+    margin-top: calc($spacing * 4);
+
+    .main-album-score-num {
+        font-size: $font-size-small;
+        font-weight: $font-weight-semibold;
+        color: $color-white;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .main-album-score-count {
+        font-size: $font-size-xs;
+        color: $color-purple-300;
+    }
+}
+
 

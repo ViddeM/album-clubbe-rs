@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 
+pub mod components;
 mod admin_view;
 mod history_view;
 mod main_view;

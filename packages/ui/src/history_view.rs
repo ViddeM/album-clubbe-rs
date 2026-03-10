@@ -1,6 +1,7 @@
+use crate::components::stars::{AverageStars, ReviewScore};
 use crate::SiteFooter;
 use api::api_models::HistoryEntry;
-use api::get_history;
+use api::{get_history, get_reviews};
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::fa_brands_icons::FaSpotify;
 use dioxus_free_icons::icons::fa_regular_icons::FaClock;
@@ -103,6 +104,22 @@ fn group_history_by_month(mut entries: Vec<HistoryEntry>) -> Vec<(String, Vec<Hi
 
 #[component]
 fn HistoryCard(entry: HistoryEntry) -> Element {
+    let mut score = use_signal(|| ReviewScore::Loading);
+    let meeting_id = entry.id.clone();
+
+    use_future(move || {
+        let meeting_id = meeting_id.clone();
+        async move {
+            match get_reviews(meeting_id).await {
+                Ok(reviews) => {
+                    let scores: Vec<u8> = reviews.album_reviews.iter().map(|r| r.score).collect();
+                    score.set(ReviewScore::from_scores(&scores));
+                }
+                Err(_) => score.set(ReviewScore::NoReviews),
+            }
+        }
+    });
+
     rsx! {
         div { class: "history-card card",
             div { class: "history-card-art-wrapper",
@@ -149,6 +166,23 @@ fn HistoryCard(entry: HistoryEntry) -> Element {
                             {entry.meeting_location.as_deref().unwrap_or("Ej angivet")}
                         }
                     }
+                }
+
+                match score() {
+                    ReviewScore::Rated { avg, count } => rsx! {
+                        div { class: "history-card-score",
+                            AverageStars { avg }
+                            span { class: "history-card-score-num", {format!("{:.1}", avg)} }
+                            span { class: "history-card-score-count", {format!("({count})")} }
+                        }
+                    },
+                    ReviewScore::NoReviews => rsx! {
+                        div { class: "history-card-score",
+                            AverageStars { avg: 0.0, placeholder: true }
+                            span { class: "history-card-score-count", "Inga betyg" }
+                        }
+                    },
+                    ReviewScore::Loading => rsx! {},
                 }
 
                 a {

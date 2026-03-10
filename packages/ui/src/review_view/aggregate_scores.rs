@@ -1,3 +1,4 @@
+use crate::components::stars::AverageStars;
 use api::api_models::{AlbumTrack, Reviews};
 use dioxus::prelude::*;
 use dioxus_free_icons::{icons::fa_brands_icons::FaSpotify, Icon};
@@ -87,42 +88,6 @@ pub fn AggregateScores(
                                 }
                                 span {}
                             }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-#[component]
-fn AverageStars(avg: f32, #[props(default = false)] placeholder: bool) -> Element {
-    // Round to nearest integer on the 1–10 scale (each integer = one half-star)
-    let display_score = avg.round() as u8;
-    let class = if placeholder {
-        "star-rating star-rating-readonly star-rating-placeholder"
-    } else {
-        "star-rating star-rating-readonly"
-    };
-
-    rsx! {
-        div {
-            class: "{class}",
-            "aria-label": format!("Genomsnitt {:.1} av 10", avg),
-            for star in 1u8..=5 {
-                {
-                    let left_score = star * 2 - 1;
-                    let right_score = star * 2;
-                    let fill = if display_score >= right_score {
-                        "full"
-                    } else if display_score >= left_score {
-                        "half"
-                    } else {
-                        "empty"
-                    };
-                    rsx! {
-                        div { key: "{star}", class: "star-slot star-{fill}",
-                            span { class: "star-bg", "★" }
                         }
                     }
                 }

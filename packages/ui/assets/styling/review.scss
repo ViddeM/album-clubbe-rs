@@ -1,10 +1,5 @@
 @import "./theme.scss";
 
-// ── Shared colors ─────────────────────────────────────────────────────────────
-
-$star-empty-color:  color-mix(in oklab, $color-purple-400 40%, transparent);
-$star-filled-color: #fbbf24; // amber-400
-
 // ── Page wrapper ──────────────────────────────────────────────────────────────
 
 .review-page-wrapper {
@@ -500,78 +495,4 @@ select {
     padding-left: calc($spacing * 3);
 }
 
-// ── Star rating widget ────────────────────────────────────────────────────────
 
-.star-rating {
-    display: inline-flex;
-    flex-direction: row;
-    align-items: center;
-    gap: calc($spacing * 0.5);
-    line-height: 1;
-}
-
-.star-slot {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    cursor: pointer;
-
-    // ── star glyph ──────────────────────────────────────────────────────────
-    .star-bg {
-        position: relative;
-        font-size: 1.5rem;
-        line-height: 1;
-        color: $star-empty-color;     // dim: the unfilled portion
-        pointer-events: none;
-        user-select: none;
-
-        // Filled overlay: rendered on top via ::after with clip-path
-        &::after {
-            content: '★';
-            position: absolute;
-            left: 0;
-            top: 0;
-            color: $star-filled-color;
-            // Default: hidden – overridden per fill state below
-            clip-path: inset(0 100% 0 0);
-        }
-    }
-
-    &.star-full .star-bg::after {
-        clip-path: inset(0 0% 0 0);
-    }
-
-    &.star-half .star-bg::after {
-        clip-path: inset(0 50% 0 0);
-    }
-
-    // ── click zones ──────────────────────────────────────────────────────────
-    .star-half-zone {
-        position: absolute;
-        top: 0;
-        height: 100%;
-        width: 50%;
-        cursor: pointer;
-        z-index: 1;
-
-        &.star-half-left  { left: 0; }
-        &.star-half-right { right: 0; }
-    }
-}
-
-// Read-only: no cursor/click interactions
-.star-rating-readonly .star-slot {
-    cursor: default;
-
-    .star-half-zone {
-        display: none;
-    }
-}
-
-// Placeholder: dimmed empty stars for unreviewed tracks
-.star-rating-placeholder {
-    opacity: 0.25;
-}
