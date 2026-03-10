@@ -5,7 +5,7 @@ use api::admin_set_current;
 use api::admin_set_member_password;
 use api::admin_spotify_album_search;
 use api::admin_update_current;
-use api::api_models::{Data, HistoryEntry, SpotifyAlbumSearchItem};
+use api::api_models::{Data, HistoryEntry, SetCurrentRequest, SpotifyAlbumSearchItem};
 use api::{get_current, get_history};
 use dioxus::document::eval;
 use dioxus::prelude::*;
@@ -422,34 +422,23 @@ pub fn Admin() -> Element {
 
                             submit_state.set(None);
                             spawn(async move {
+                                let req = SetCurrentRequest {
+                                    album_id: album.id,
+                                    album_name: album.name,
+                                    album_artist: album.artists,
+                                    album_art_url: art_url,
+                                    album_spotify_url: album.spotify_url,
+                                    picker: picker_val,
+                                    meeting_date: date,
+                                    meeting_time: time,
+                                    meeting_location: location,
+                                };
                                 let result = if editing {
-                                    admin_update_current(
-                                            token,
-                                            album.id,
-                                            album.name,
-                                            album.artists,
-                                            art_url,
-                                            album.spotify_url,
-                                            picker_val,
-                                            date,
-                                            time,
-                                            location,
-                                        )
+                                    admin_update_current(token, req)
                                         .await
                                         .map_err(|e| e.to_string())
                                 } else {
-                                    admin_set_current(
-                                            token,
-                                            album.id,
-                                            album.name,
-                                            album.artists,
-                                            art_url,
-                                            album.spotify_url,
-                                            picker_val,
-                                            date,
-                                            time,
-                                            location,
-                                        )
+                                    admin_set_current(token, req)
                                         .await
                                         .map_err(|e| e.to_string())
                                 };

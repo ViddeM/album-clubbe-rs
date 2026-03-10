@@ -83,3 +83,17 @@ pub struct Reviews {
     pub album_reviews: Vec<AlbumReview>,
     pub track_reviews: Vec<TrackReview>,
 }
+
+/// Request body for `admin_set_current` and `admin_update_current`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SetCurrentRequest {
+    pub album_id: String,
+    pub album_name: String,
+    pub album_artist: String,
+    pub album_art_url: String,
+    pub album_spotify_url: String,
+    pub picker: String,
+    pub meeting_date: String,
+    pub meeting_time: Option<String>,
+    pub meeting_location: Option<String>,
+}
