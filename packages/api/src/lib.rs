@@ -79,12 +79,7 @@ fn ensure_admin_token(admin_token: &str) -> Result<(), ServerFnError> {
 pub async fn get_current() -> Result<Data, ServerFnError> {
     #[cfg(not(feature = "server"))]
     {
-        return Ok(Data {
-            current_album: None,
-            next_meeting: None,
-            current_person: None,
-            members: Vec::new(),
-        });
+        return Err(ServerFnError::new("Only available on server builds"));
     }
 
     #[cfg(feature = "server")]
@@ -154,7 +149,7 @@ pub async fn get_current() -> Result<Data, ServerFnError> {
 pub async fn get_history() -> Result<Vec<HistoryEntry>, ServerFnError> {
     #[cfg(not(feature = "server"))]
     {
-        return Ok(Vec::new());
+        return Err(ServerFnError::new("Only available on server builds"));
     }
 
     #[cfg(feature = "server")]
@@ -562,7 +557,7 @@ pub async fn submit_album_review(
     password: String,
     meeting_id: String,
     score: u8,
-) -> Result<(), ServerFnError> {
+) -> Result<Reviews, ServerFnError> {
     if score > 10 {
         return Err(ServerFnError::new("Score must be between 0 and 10"));
     }
@@ -598,7 +593,8 @@ pub async fn submit_album_review(
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 
         tracing::info!("submit_album_review → ok");
-        Ok(())
+
+        get_reviews(meeting_id).await
     }
 }
 
@@ -610,7 +606,9 @@ pub async fn submit_track_review(
     meeting_id: String,
     track_id: String,
     score: u8,
-) -> Result<(), ServerFnError> {
+) -> Result<Reviews, ServerFnError> {
+    tracing::info!("Reviewing track by {member_name} :: {track_id} :: {score}");
+
     if score > 10 {
         return Err(ServerFnError::new("Score must be between 0 and 10"));
     }
@@ -645,7 +643,7 @@ pub async fn submit_track_review(
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 
         tracing::info!("submit_track_review → ok");
-        Ok(())
+        get_reviews(meeting_id).await
     }
 }
 
