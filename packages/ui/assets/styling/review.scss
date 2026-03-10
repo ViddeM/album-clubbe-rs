@@ -447,6 +447,59 @@ select {
     text-align: center;
 }
 
+// ── Staged-change indicators & submit controls ──────────────────────────────
+
+.review-submit-row {
+    display: flex;
+    gap: calc($spacing * 2);
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: calc($spacing * 2);
+}
+
+.review-submit-btn {
+    @extend .review-button;
+    background-color: $color-green-600;
+
+    &:hover:not(:disabled) {
+        background-color: color-mix(in oklab, $color-green-600 80%, $color-white);
+    }
+}
+
+.review-reset-btn {
+    background: none;
+    border: 1px solid color-mix(in oklab, $color-white 20%, transparent);
+    color: $color-purple-300;
+    padding: calc($spacing * 2) calc($spacing * 4);
+    border-radius: $radius;
+    font-size: $font-size-small;
+    cursor: pointer;
+
+    &:hover {
+        color: $color-white;
+        border-color: color-mix(in oklab, $color-white 40%, transparent);
+    }
+}
+
+.star-wrap,
+.track-wrap {
+    transition: background-color 160ms, border-left-color 160ms;
+}
+
+.star-wrap.changed-up,
+.track-wrap.changed-up {
+    background-color: color-mix(in oklab, $color-green-400 6%, transparent);
+    border-left: 3px solid $color-green-400;
+    padding-left: calc($spacing * 3);
+}
+
+.star-wrap.changed-down,
+.track-wrap.changed-down {
+    background-color: color-mix(in oklab, #f87171 6%, transparent);
+    border-left: 3px solid #f87171;
+    padding-left: calc($spacing * 3);
+}
+
 // ── Star rating widget ────────────────────────────────────────────────────────
 
 .star-rating {

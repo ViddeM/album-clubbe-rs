@@ -1,7 +1,7 @@
 use api::api_models::{AlbumTrack, Reviews};
-use std::collections::HashMap;
 use dioxus::{core::EventHandler, prelude::*};
 use dioxus_free_icons::{icons::fa_brands_icons::FaSpotify, Icon};
+use std::collections::HashMap;
 
 #[component]
 pub fn ReviewLoggedInView(
@@ -49,12 +49,75 @@ pub fn ReviewLoggedInView(
     let track_ratings = use_memo(move || {
         let mut map: HashMap<String, u8> = HashMap::new();
 
-        for tr in reviews().track_reviews.iter().filter(|r| r.member_name == logged_in_as()) {
+        for tr in reviews()
+            .track_reviews
+            .iter()
+            .filter(|r| r.member_name == logged_in_as())
+        {
             map.insert(tr.track_id.clone(), tr.score);
         }
 
         map
     });
+
+    // Local staged changes (not yet submitted to API)
+    let mut staged_album: Signal<u8> = use_signal(|| album_rating());
+    let mut staged_track_scores: Signal<HashMap<String, u8>> = use_signal(|| track_ratings());
+
+    // Keep staged values in sync when server reviews change (e.g. after submit)
+    // Clone once and move into effect to avoid repeated work and shadowing.
+    let album_rating_clone = album_rating.clone();
+    let track_ratings_clone = track_ratings.clone();
+    let mut staged_album_clone = staged_album.clone();
+    let mut staged_track_scores_clone = staged_track_scores.clone();
+
+    use_effect(move || {
+        // Initialize staged values from server-provided ratings whenever
+        // the server-side memos change.
+        staged_album_clone.set(album_rating_clone());
+        staged_track_scores_clone.set(track_ratings_clone());
+    });
+
+    // Has local changes compared to server
+    let has_changes = use_memo(move || {
+        if staged_album() != album_rating() {
+            return true;
+        }
+
+        if staged_track_scores() != track_ratings() {
+            return true;
+        }
+
+        false
+    });
+
+    // Submit staged changes: call existing callbacks for changed entries
+    let submit_staged = {
+        let staged_album = staged_album.clone();
+        let staged_track_scores = staged_track_scores.clone();
+        let album_rating = album_rating.clone();
+        let track_ratings = track_ratings.clone();
+        let review_album = review_album.clone();
+        let review_track = review_track.clone();
+        let reset_errors = reset_errors.clone();
+
+        use_callback(move |()| {
+            reset_errors(());
+
+            // Submit album if changed
+            if staged_album() != album_rating() {
+                review_album(staged_album());
+            }
+
+            // Submit each changed track
+            for (tid, &score) in staged_track_scores().iter() {
+                let server_score = track_ratings().get(tid).copied().unwrap_or(0);
+                if score != server_score {
+                    review_track((tid.clone(), score));
+                }
+            }
+        })
+    };
 
     // let review_track = use_callback(move |(name, password, meeting_id, track_id, review)| {
     //     spawn(async move {
@@ -92,13 +155,29 @@ pub fn ReviewLoggedInView(
                 h3 { "Albumbetyg" }
                 p { class: "review-section-hint", "Ge albumet ett betyg från 1 till 10." }
                 div { class: "review-star-row",
-                    StarRating {
-                        score: album_rating(),
-                        on_change: move |s| {
-                            review_album(s);
-                        },
+                    // Visual indicator for change direction
+                    {
+                        let album_change = staged_album() as i8 - album_rating() as i8;
+                        let change_class = if album_change > 0 {
+                            "changed-up"
+                        } else if album_change < 0 {
+                            "changed-down"
+                        } else {
+                            ""
+                        };
+
+                        rsx! {
+                            div { class: "star-wrap {change_class}",
+                                StarRating {
+                                    score: staged_album(),
+                                    on_change: move |s| {
+                                        staged_album.set(s);
+                                    },
+                                }
+                            }
+                        }
                     }
-                    span { class: "review-score-text", "{album_rating()} / 10" }
+                    span { class: "review-score-text", "{staged_album()} / 10" }
                 }
 
                 if let Some(e) = album_review_error() {
@@ -113,18 +192,58 @@ pub fn ReviewLoggedInView(
 
                 div { class: "review-track-list",
                     for track in tracks().iter() {
-                        TrackRatingRow {
-                            key: "{track.track_id}",
-                            track: track.clone(),
-                            score: *track_ratings().get(&track.track_id).unwrap_or(&0),
-                            on_change: {
-                                let tid = track.track_id.clone();
-                                move |s| {
-                                    reset_errors(());
-                                    review_track((tid.clone(), s));
+                        {
+                            let server_score = *track_ratings().get(&track.track_id).unwrap_or(&0);
+                            let staged_score = *staged_track_scores().get(&track.track_id).unwrap_or(&0);
+                            let change = staged_score as i8 - server_score as i8;
+                            let tc = if change > 0 {
+                                "changed-up"
+                            } else if change < 0 {
+                                "changed-down"
+                            } else {
+                                ""
+                            };
+                            rsx! {
+                                div { class: "track-wrap {tc}",
+                                    TrackRatingRow {
+                                        key: "{track.track_id}",
+                                        track: track.clone(),
+                                        score: staged_score,
+                                        on_change: {
+                                            let tid = track.track_id.clone();
+                                            let mut staged_track_scores = staged_track_scores.clone();
+                                            move |s| {
+                                                reset_errors(());
+                                                let mut new = staged_track_scores().clone();
+                                                new.insert(tid.clone(), s);
+                                                staged_track_scores.set(new);
+                                            }
+                                        },
+                                    }
                                 }
                             }
                         }
+                    }
+                }
+
+                // Submit / reset controls
+                div { class: "review-submit-row",
+                    button {
+                        class: "review-submit-btn",
+                        disabled: (!has_changes()).then(|| "disabled"),
+                        onclick: move |_| {
+                            submit_staged(());
+                        },
+                        "Spara recensioner"
+                    }
+                    button {
+                        class: "review-reset-btn",
+                        onclick: move |_| {
+                            reset_errors(());
+                            staged_album.set(album_rating());
+                            staged_track_scores.set(track_ratings());
+                        },
+                        "Återställ"
                     }
                 }
 
