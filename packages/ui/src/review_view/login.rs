@@ -6,6 +6,7 @@ pub fn ReviewLoginView(
     member_name: Signal<String>,
     password: Signal<String>,
     login_error: Signal<Option<String>>,
+    is_logging_in: ReadSignal<bool>,
     members: ReadSignal<Vec<Name>>,
     perform_login: Callback<()>,
 ) -> Element {
@@ -66,9 +67,14 @@ pub fn ReviewLoginView(
 
             button {
                 class: "review-button",
-                disabled: member_name().is_empty() || password().is_empty(),
+                disabled: member_name().is_empty() || password().is_empty() || is_logging_in(),
                 onclick: move |_| perform_login(()),
-                "Logga in"
+                if is_logging_in() {
+                    span { class: "spinner" }
+                    "Loggar in\u{2026}"
+                } else {
+                    "Logga in"
+                }
             }
         }
     }

@@ -231,12 +231,14 @@ fn PerformReviewView(
 
     let mut logged_in_as = use_signal(|| None::<String>);
     let mut login_error = use_signal(|| None::<String>);
+    let mut is_logging_in = use_signal(|| false);
 
     let mut album_review_error: Signal<Option<String>> = use_signal(|| None);
     let mut track_review_error: Signal<Option<String>> = use_signal(|| None);
 
     let perform_login = use_callback(move |_: ()| {
         login_error.set(None);
+        is_logging_in.set(true);
         spawn(async move {
             match verify_member(member_name(), password()).await {
                 Ok(()) => {
@@ -247,6 +249,7 @@ fn PerformReviewView(
                     login_error.set(Some(e.to_string()));
                 }
             }
+            is_logging_in.set(false);
         });
     });
 
@@ -295,6 +298,7 @@ fn PerformReviewView(
                 member_name,
                 password,
                 login_error,
+                is_logging_in,
                 members,
                 perform_login,
             }

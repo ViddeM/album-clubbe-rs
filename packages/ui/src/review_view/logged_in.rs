@@ -76,9 +76,18 @@ pub fn ReviewLoggedInView(
         false
     });
 
+    let mut is_submitting = use_signal(|| false);
+
+    // Clear the submitting flag once the server response has updated `reviews`.
+    use_effect(move || {
+        let _ = reviews(); // subscribe
+        is_submitting.set(false);
+    });
+
     // Submit staged changes: call existing callbacks for changed entries
     let submit_staged = use_callback(move |()| {
         reset_errors(());
+        is_submitting.set(true);
 
         // Submit album if changed
         if staged_album() != album_rating() {
@@ -175,14 +184,20 @@ pub fn ReviewLoggedInView(
                 div { class: "review-submit-row",
                     button {
                         class: "review-submit-btn",
-                        disabled: (!has_changes()).then_some("disabled"),
+                        disabled: (!has_changes() || is_submitting()).then_some("disabled"),
                         onclick: move |_| {
                             submit_staged(());
                         },
-                        "Spara recensioner"
+                        if is_submitting() {
+                            span { class: "spinner" }
+                            "Sparar\u{2026}"
+                        } else {
+                            "Spara recensioner"
+                        }
                     }
                     button {
                         class: "review-reset-btn",
+                        disabled: is_submitting(),
                         onclick: move |_| {
                             reset_errors(());
                             staged_album.set(album_rating());

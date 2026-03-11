@@ -145,6 +145,7 @@ pub fn AdminAlbum() -> Element {
     let mut meeting_location = use_signal(String::new);
     let mut submit_state = use_signal(|| None::<Result<(), String>>);
     let mut is_editing_current = use_signal(|| false);
+    let mut is_submitting = use_signal(|| false);
 
     rsx! {
         if let Some(data) = current_data() {
@@ -402,7 +403,8 @@ pub fn AdminAlbum() -> Element {
                 disabled: selected_album().is_none()
                     || picker().is_empty()
                     || meeting_date().is_empty()
-                    || admin_token().trim().is_empty(),
+                    || admin_token().trim().is_empty()
+                    || is_submitting(),
                 onclick: move |_| {
                     let token = admin_token();
                     let Some(album) = selected_album() else { return; };
@@ -419,6 +421,7 @@ pub fn AdminAlbum() -> Element {
                     let editing = is_editing_current();
 
                     submit_state.set(None);
+                    is_submitting.set(true);
                     spawn(async move {
                         let req = SetCurrentRequest {
                             album_id: album.id,
@@ -453,10 +456,16 @@ pub fn AdminAlbum() -> Element {
                             spotify_query.set(String::new());
                             spotify_search_state.set(None);
                         }
+                        is_submitting.set(false);
                         submit_state.set(Some(result));
                     });
                 },
-                if is_editing_current() { "Uppdatera" } else { "Spara" }
+                if is_submitting() {
+                    span { class: "spinner" }
+                    if is_editing_current() { "Uppdaterar\u{2026}" } else { "Sparar\u{2026}" }
+                } else {
+                    if is_editing_current() { "Uppdatera" } else { "Spara" }
+                }
             }
 
             if let Some(result) = submit_state() {
@@ -480,6 +489,7 @@ pub fn AdminRotation() -> Element {
     let mut original_members = ctx.original_members;
 
     let mut reorder_state = use_signal(|| None::<Result<(), String>>);
+    let mut is_submitting = use_signal(|| false);
 
     rsx! {
         div { class: "card admin-section",
@@ -493,7 +503,7 @@ pub fn AdminRotation() -> Element {
                         div { class: "member-order-buttons",
                             button {
                                 class: "admin-button-ghost",
-                                disabled: i == 0,
+                                disabled: i == 0 || is_submitting(),
                                 onclick: move |_| {
                                     let mut list = members();
                                     if i > 0 {
@@ -506,7 +516,7 @@ pub fn AdminRotation() -> Element {
                             }
                             button {
                                 class: "admin-button-ghost",
-                                disabled: i + 1 >= members().len(),
+                                disabled: i + 1 >= members().len() || is_submitting(),
                                 onclick: move |_| {
                                     let mut list = members();
                                     if i + 1 < list.len() {
@@ -524,11 +534,12 @@ pub fn AdminRotation() -> Element {
 
             button {
                 class: "admin-button admin-button-submit",
-                disabled: members() == original_members() || admin_token().trim().is_empty(),
+                disabled: members() == original_members() || admin_token().trim().is_empty() || is_submitting(),
                 onclick: move |_| {
                     let token = admin_token();
                     let ordered = members();
                     reorder_state.set(None);
+                    is_submitting.set(true);
                     spawn(async move {
                         let result = admin_reorder_members(token, ordered.clone())
                             .await
@@ -536,10 +547,16 @@ pub fn AdminRotation() -> Element {
                         if result.is_ok() {
                             original_members.write().clone_from(&ordered);
                         }
+                        is_submitting.set(false);
                         reorder_state.set(Some(result));
                     });
                 },
-                "Spara ordning"
+                if is_submitting() {
+                    span { class: "spinner" }
+                    "Sparar\u{2026}"
+                } else {
+                    "Spara ordning"
+                }
             }
 
             if let Some(result) = reorder_state() {
@@ -560,6 +577,7 @@ pub fn AdminHistory() -> Element {
     let ctx = use_context::<AdminCtx>();
     let admin_token = ctx.admin_token;
     let mut history = ctx.history;
+    let mut deleting_id: Signal<Option<String>> = use_signal(|| None);
 
     // Refresh history every time this tab is mounted.
     use_effect(move || {
@@ -602,12 +620,14 @@ pub fn AdminHistory() -> Element {
                                 button {
                                     class: "admin-button-ghost admin-history-delete",
                                     title: "Ta bort",
-                                    disabled: admin_token().trim().is_empty(),
+                                    disabled: admin_token().trim().is_empty()
+                                        || deleting_id().is_some(),
                                     onclick: {
                                         let id = entry.id.clone();
                                         move |_| {
                                             let token = admin_token();
                                             let entry_id = id.clone();
+                                            deleting_id.set(Some(entry_id.clone()));
                                             spawn(async move {
                                                 if admin_delete_history_entry(
                                                     token,
@@ -622,10 +642,15 @@ pub fn AdminHistory() -> Element {
                                                         list.retain(|e| e.id != entry_id);
                                                     }
                                                 }
+                                                deleting_id.set(None);
                                             });
                                         }
                                     },
-                                    Icon { icon: FiTrash2 }
+                                    if deleting_id().as_deref() == Some(entry.id.as_str()) {
+                                        span { class: "spinner" }
+                                    } else {
+                                        Icon { icon: FiTrash2 }
+                                    }
                                 }
                             }
                         }
@@ -647,6 +672,7 @@ pub fn AdminPasswords() -> Element {
     let mut pw_member = use_signal(String::new);
     let mut pw_result = use_signal(|| None::<Result<String, String>>);
     let mut pw_copied = use_signal(|| false);
+    let mut is_submitting = use_signal(|| false);
 
     rsx! {
         div { class: "card admin-section",
@@ -683,19 +709,26 @@ pub fn AdminPasswords() -> Element {
 
             button {
                 class: "admin-button admin-button-submit",
-                disabled: pw_member().is_empty() || admin_token().trim().is_empty(),
+                disabled: pw_member().is_empty() || admin_token().trim().is_empty() || is_submitting(),
                 onclick: move |_| {
                     let token = admin_token();
                     let name = pw_member();
                     pw_result.set(None);
+                    is_submitting.set(true);
                     spawn(async move {
                         let result = admin_set_member_password(token, name)
                             .await
                             .map_err(|e| e.to_string());
+                        is_submitting.set(false);
                         pw_result.set(Some(result));
                     });
                 },
-                "Generera lösenord"
+                if is_submitting() {
+                    span { class: "spinner" }
+                    "Genererar\u{2026}"
+                } else {
+                    "Generera lösenord"
+                }
             }
 
             if let Some(Err(ref e)) = pw_result() {
