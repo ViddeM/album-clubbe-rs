@@ -8,7 +8,7 @@ use crate::api_models::{Data, HistoryEntry, SetCurrentRequest};
 
 use super::{ensure_admin_token, get_db, IntoServerError};
 
-pub(crate) async fn get_current_impl() -> Result<Data, ServerFnError> {
+pub async fn get_current_impl() -> Result<Data, ServerFnError> {
     tracing::debug!("GET /api/info");
 
     let pool = get_db().await?;
@@ -67,7 +67,7 @@ pub(crate) async fn get_current_impl() -> Result<Data, ServerFnError> {
     }
 }
 
-pub(crate) async fn get_history_impl() -> Result<Vec<HistoryEntry>, ServerFnError> {
+pub async fn get_history_impl() -> Result<Vec<HistoryEntry>, ServerFnError> {
     tracing::debug!("GET /api/history");
 
     let pool = get_db().await?;
@@ -101,7 +101,7 @@ pub(crate) async fn get_history_impl() -> Result<Vec<HistoryEntry>, ServerFnErro
         .collect())
 }
 
-pub(crate) async fn admin_set_current_impl(
+pub async fn admin_set_current_impl(
     admin_token: String,
     req: SetCurrentRequest,
 ) -> Result<(), ServerFnError> {
@@ -147,7 +147,7 @@ pub(crate) async fn admin_set_current_impl(
     Ok(())
 }
 
-pub(crate) async fn admin_update_current_impl(
+pub async fn admin_update_current_impl(
     admin_token: String,
     req: SetCurrentRequest,
 ) -> Result<(), ServerFnError> {
@@ -185,7 +185,7 @@ pub(crate) async fn admin_update_current_impl(
     Ok(())
 }
 
-pub(crate) async fn admin_delete_history_entry_impl(
+pub async fn admin_delete_history_entry_impl(
     admin_token: String,
     id: String,
 ) -> Result<(), ServerFnError> {
@@ -204,7 +204,7 @@ pub(crate) async fn admin_delete_history_entry_impl(
     Ok(())
 }
 
-pub(crate) async fn admin_reorder_members_impl(
+pub async fn admin_reorder_members_impl(
     admin_token: String,
     ordered_names: Vec<String>,
 ) -> Result<(), ServerFnError> {

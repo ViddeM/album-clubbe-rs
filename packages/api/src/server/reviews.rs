@@ -8,7 +8,7 @@ use crate::api_models::{AlbumReview, Reviews, TrackReview};
 
 use super::{get_db, members::verify_member_password_internal, IntoServerError};
 
-pub(crate) async fn get_reviews_impl(meeting_id: String) -> Result<Reviews, ServerFnError> {
+pub async fn get_reviews_impl(meeting_id: String) -> Result<Reviews, ServerFnError> {
     tracing::debug!("get_reviews meeting_id=\"{meeting_id}\"");
     let pool = get_db().await?;
 
@@ -50,7 +50,7 @@ pub(crate) async fn get_reviews_impl(meeting_id: String) -> Result<Reviews, Serv
     })
 }
 
-pub(crate) async fn submit_album_review_impl(
+pub async fn submit_album_review_impl(
     member_name: String,
     password: String,
     meeting_id: String,
@@ -81,7 +81,7 @@ pub(crate) async fn submit_album_review_impl(
     get_reviews_impl(meeting_id).await
 }
 
-pub(crate) async fn submit_track_review_impl(
+pub async fn submit_track_review_impl(
     member_name: String,
     password: String,
     meeting_id: String,

@@ -10,7 +10,7 @@ use sqlx::Row;
 
 use super::{ensure_admin_token, get_db, IntoServerError};
 
-pub(crate) async fn verify_member_password_internal(
+pub async fn verify_member_password_internal(
     member_name: &str,
     password: &str,
 ) -> Result<(), ServerFnError> {
@@ -37,7 +37,7 @@ pub(crate) async fn verify_member_password_internal(
         .map_err(|_| ServerFnError::new("Incorrect password"))
 }
 
-pub(crate) async fn admin_set_member_password_impl(
+pub async fn admin_set_member_password_impl(
     admin_token: String,
     member_name: String,
 ) -> Result<String, ServerFnError> {

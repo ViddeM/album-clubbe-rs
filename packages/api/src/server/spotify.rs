@@ -6,7 +6,7 @@ use crate::api_models::{AlbumTrack, SpotifyAlbumSearchItem};
 
 use super::{ensure_admin_token, get_db, get_spotify_client, IntoServerError};
 
-pub(crate) async fn get_album_tracks_impl(
+pub async fn get_album_tracks_impl(
     album_id: String,
 ) -> Result<Vec<AlbumTrack>, ServerFnError> {
     tracing::debug!("get_album_tracks album_id=\"{album_id}\"");
@@ -79,7 +79,7 @@ pub(crate) async fn get_album_tracks_impl(
         .collect())
 }
 
-pub(crate) async fn admin_spotify_album_search_impl(
+pub async fn admin_spotify_album_search_impl(
     admin_token: String,
     search_term: &str,
 ) -> Result<Vec<SpotifyAlbumSearchItem>, ServerFnError> {

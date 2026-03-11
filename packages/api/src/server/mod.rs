@@ -7,29 +7,29 @@ use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use dioxus::prelude::ServerFnError;
 use ::spotify::SpotifyClient;
 
-pub(super) mod meetings;
-pub(super) mod members;
-pub(super) mod reviews;
-pub(super) mod spotify;
+pub mod meetings;
+pub mod members;
+pub mod reviews;
+pub mod spotify;
 
 // Re-export the impl fns so lib.rs can reach them via `server::*`.
-pub(crate) use meetings::{
+pub use meetings::{
     admin_delete_history_entry_impl, admin_reorder_members_impl, admin_set_current_impl,
     admin_update_current_impl, get_current_impl, get_history_impl,
 };
-pub(crate) use members::admin_set_member_password_impl;
-pub(crate) use reviews::{get_reviews_impl, submit_album_review_impl, submit_track_review_impl};
-pub(crate) use spotify::{admin_spotify_album_search_impl, get_album_tracks_impl};
+pub use members::admin_set_member_password_impl;
+pub use reviews::{get_reviews_impl, submit_album_review_impl, submit_track_review_impl};
+pub use spotify::{admin_spotify_album_search_impl, get_album_tracks_impl};
 
 // Also re-export verify so lib.rs can call it directly for the verify_member endpoint.
-pub(crate) use self::members::verify_member_password_internal;
+pub use self::members::verify_member_password_internal;
 
 // ---------------------------------------------------------------------------
 // Extension trait
 // ---------------------------------------------------------------------------
 
 /// Converts any `Display` error into a `ServerFnError` via `.server_err()`.
-pub(super) trait IntoServerError<T> {
+pub trait IntoServerError<T> {
     fn server_err(self) -> Result<T, ServerFnError>;
 }
 
@@ -43,7 +43,7 @@ impl<T, E: std::fmt::Display> IntoServerError<T> for Result<T, E> {
 // Statics
 // ---------------------------------------------------------------------------
 
-pub(super) static SPOTIFY_CLIENT: OnceLock<tokio::sync::Mutex<Option<SpotifyClient>>> =
+pub static SPOTIFY_CLIENT: OnceLock<tokio::sync::Mutex<Option<SpotifyClient>>> =
     OnceLock::new();
 
 static DB: tokio::sync::OnceCell<sqlx::SqlitePool> = tokio::sync::OnceCell::const_new();
@@ -54,7 +54,7 @@ const ADMIN_TOKEN_ENV: &str = "ADMIN_TOKEN";
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-pub(super) async fn get_db() -> Result<&'static sqlx::SqlitePool, ServerFnError> {
+pub async fn get_db() -> Result<&'static sqlx::SqlitePool, ServerFnError> {
     DB.get_or_try_init(|| async {
         let db_url =
             std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:database.db".to_string());
@@ -76,7 +76,7 @@ pub async fn init_db() -> Result<(), ServerFnError> {
     Ok(())
 }
 
-pub(super) fn ensure_admin_token(admin_token: &str) -> Result<(), ServerFnError> {
+pub fn ensure_admin_token(admin_token: &str) -> Result<(), ServerFnError> {
     let expected_hash = std::env::var(ADMIN_TOKEN_ENV)
         .map_err(|_| ServerFnError::new("ADMIN_TOKEN is not configured on the server"))?;
 
@@ -91,7 +91,7 @@ pub(super) fn ensure_admin_token(admin_token: &str) -> Result<(), ServerFnError>
 }
 
 /// Acquire the Spotify client, lazily initialising it from environment variables.
-pub(super) async fn get_spotify_client(
+pub async fn get_spotify_client(
 ) -> Result<tokio::sync::MutexGuard<'static, Option<SpotifyClient>>, ServerFnError> {
     let mutex = SPOTIFY_CLIENT.get_or_init(|| tokio::sync::Mutex::new(None));
     let mut guard = mutex.lock().await;
