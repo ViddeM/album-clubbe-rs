@@ -473,7 +473,7 @@ pub async fn get_reviews(meeting_id: String) -> Result<Reviews, ServerFnError> {
         let pool = get_db().await?;
         use sqlx::Row;
 
-        let album_rows = sqlx::query("SELECT member_name, score FROM reviews WHERE meeting_id = ?")
+        let album_rows = sqlx::query("SELECT member_name, score FROM album_reviews WHERE meeting_id = ?")
             .bind(&meeting_id)
             .fetch_all(pool)
             .await
@@ -540,7 +540,7 @@ pub async fn submit_album_review(
         let pool = get_db().await?;
 
         sqlx::query(
-            "INSERT INTO reviews (id, meeting_id, member_name, score)
+            "INSERT INTO album_reviews (id, meeting_id, member_name, score)
              VALUES (?, ?, ?, ?)
              ON CONFLICT(meeting_id, member_name)
              DO UPDATE SET score = excluded.score, updated_at = datetime('now')",
