@@ -4,7 +4,7 @@ ALTER TABLE members ADD COLUMN password_hash TEXT;
 
 -- Album-level reviews: one score (0-10) per member per meeting.
 -- UNIQUE constraint lets us upsert without duplicate rows.
-CREATE TABLE IF NOT EXISTS reviews (
+CREATE TABLE IF NOT EXISTS album_reviews (
     id           TEXT    NOT NULL PRIMARY KEY,
     meeting_id   TEXT    NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
     member_name  TEXT    NOT NULL REFERENCES members(name) ON DELETE CASCADE,
@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS album_tracks (
     track_id     TEXT    NOT NULL,
     track_name   TEXT    NOT NULL,
     duration_ms  INTEGER,
+    spotify_url  TEXT,
     PRIMARY KEY (album_id, track_id)
 );
 
