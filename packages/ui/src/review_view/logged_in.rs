@@ -29,8 +29,8 @@ pub fn ReviewLoggedInView(
             .album_reviews
             .iter()
             .find(|r| r.member_name == logged_in_as())
-            .expect("Current album to exist")
-            .score
+            .map(|r| r.score)
+            .unwrap_or(0)
     });
 
     // Pre-fill existing per-track ratings for this member
