@@ -19,36 +19,48 @@ static SPOTIFY_CLIENT: OnceLock<tokio::sync::Mutex<Option<spotify::SpotifyClient
 #[cfg(feature = "server")]
 static DB: tokio::sync::OnceCell<sqlx::SqlitePool> = tokio::sync::OnceCell::const_new();
 
-// Only used in server builds; suppress dead_code lint for non-server compilation.
-#[allow(dead_code)]
+#[cfg(feature = "server")]
 const ADMIN_TOKEN_ENV: &str = "ADMIN_TOKEN";
 
-#[allow(dead_code)]
+#[cfg(feature = "server")]
+async fn get_db() -> Result<&'static sqlx::SqlitePool, ServerFnError> {
+    DB.get_or_try_init(|| async {
+        let db_url =
+            std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:database.db".to_string());
+        tracing::info!("Connecting to database: {db_url}");
+        let pool = db::init_pool(&db_url).await;
+        match &pool {
+            Ok(_) => tracing::info!("Database ready"),
+            Err(e) => tracing::error!("Database initialisation failed: {e}"),
+        }
+        pool
+    })
+    .await
+    .map_err(|e| ServerFnError::new(e.to_string()))
+}
+
+/// Eagerly initialise the database pool. Call this on startup to surface errors early.
+#[cfg(feature = "server")]
+pub async fn init_db() -> Result<(), ServerFnError> {
+    get_db().await?;
+    Ok(())
+}
+
+#[cfg(feature = "server")]
 fn ensure_admin_token(admin_token: &str) -> Result<(), ServerFnError> {
-    #[cfg(not(feature = "server"))]
-    {
-        let _ = admin_token;
-        Err(ServerFnError::new(
-            "Admin auth is only available on server builds",
-        ))
-    }
+    use argon2::{Argon2, PasswordHash, PasswordVerifier};
 
-    #[cfg(feature = "server")]
-    {
-        use argon2::{Argon2, PasswordHash, PasswordVerifier};
+    let expected_hash = std::env::var(ADMIN_TOKEN_ENV)
+        .map_err(|_| ServerFnError::new("ADMIN_TOKEN is not configured on the server"))?;
 
-        let expected_hash = std::env::var(ADMIN_TOKEN_ENV)
-            .map_err(|_| ServerFnError::new("ADMIN_TOKEN is not configured on the server"))?;
+    let parsed_hash = PasswordHash::new(&expected_hash)
+        .map_err(|_| ServerFnError::new("ADMIN_TOKEN must be a valid Argon2 PHC hash"))?;
 
-        let parsed_hash = PasswordHash::new(&expected_hash)
-            .map_err(|_| ServerFnError::new("ADMIN_TOKEN must be a valid Argon2 PHC hash"))?;
+    Argon2::default()
+        .verify_password(admin_token.as_bytes(), &parsed_hash)
+        .map_err(|_| ServerFnError::new("Unauthorized"))?;
 
-        Argon2::default()
-            .verify_password(admin_token.as_bytes(), &parsed_hash)
-            .map_err(|_| ServerFnError::new("Unauthorized"))?;
-
-        Ok(())
-    }
+    Ok(())
 }
 
 /// Get the current album, next meeting and member list.
@@ -172,8 +184,6 @@ pub async fn admin_set_current(
     admin_token: String,
     req: SetCurrentRequest,
 ) -> Result<(), ServerFnError> {
-    ensure_admin_token(&admin_token)?;
-
     #[cfg(not(feature = "server"))]
     {
         return Err(ServerFnError::new("Only available on server builds"));
@@ -181,6 +191,7 @@ pub async fn admin_set_current(
 
     #[cfg(feature = "server")]
     {
+        ensure_admin_token(&admin_token)?;
         use uuid::Uuid;
 
         tracing::info!("POST /api/admin/set-current album=\"{}\" picker=\"{}\" date=\"{}\"", req.album_name, req.picker, req.meeting_date);
@@ -233,8 +244,6 @@ pub async fn admin_update_current(
     admin_token: String,
     req: SetCurrentRequest,
 ) -> Result<(), ServerFnError> {
-    ensure_admin_token(&admin_token)?;
-
     #[cfg(not(feature = "server"))]
     {
         return Err(ServerFnError::new("Only available on server builds"));
@@ -242,6 +251,7 @@ pub async fn admin_update_current(
 
     #[cfg(feature = "server")]
     {
+        ensure_admin_token(&admin_token)?;
         tracing::info!("POST /api/admin/update-current album=\"{}\" picker=\"{}\" date=\"{}\"", req.album_name, req.picker, req.meeting_date);
         let pool = get_db().await?;
 
@@ -276,8 +286,6 @@ pub async fn admin_delete_history_entry(
     admin_token: String,
     id: String,
 ) -> Result<(), ServerFnError> {
-    ensure_admin_token(&admin_token)?;
-
     #[cfg(not(feature = "server"))]
     {
         return Err(ServerFnError::new("Only available on server builds"));
@@ -285,6 +293,7 @@ pub async fn admin_delete_history_entry(
 
     #[cfg(feature = "server")]
     {
+        ensure_admin_token(&admin_token)?;
         tracing::info!("POST /api/admin/history/delete id=\"{id}\"");
         let pool = get_db().await?;
 
@@ -305,8 +314,6 @@ pub async fn admin_reorder_members(
     admin_token: String,
     ordered_names: Vec<String>,
 ) -> Result<(), ServerFnError> {
-    ensure_admin_token(&admin_token)?;
-
     #[cfg(not(feature = "server"))]
     {
         return Err(ServerFnError::new("Only available on server builds"));
@@ -314,6 +321,7 @@ pub async fn admin_reorder_members(
 
     #[cfg(feature = "server")]
     {
+        ensure_admin_token(&admin_token)?;
         tracing::info!(
             "POST /api/admin/reorder-members {} members",
             ordered_names.len()
@@ -644,8 +652,6 @@ pub async fn admin_spotify_album_search(
     admin_token: String,
     query: String,
 ) -> Result<Vec<SpotifyAlbumSearchItem>, ServerFnError> {
-    ensure_admin_token(&admin_token)?;
-
     let search_term = query.trim();
     if search_term.is_empty() {
         return Ok(Vec::new());
@@ -661,6 +667,7 @@ pub async fn admin_spotify_album_search(
 
     #[cfg(feature = "server")]
     {
+        ensure_admin_token(&admin_token)?;
         tracing::debug!("POST /api/admin/spotify/search query=\"{search_term}\"");
         let spotify_client = SPOTIFY_CLIENT.get_or_init(|| tokio::sync::Mutex::new(None));
         let mut spotify_client = spotify_client.lock().await;
@@ -701,8 +708,6 @@ pub async fn admin_set_member_password(
     admin_token: String,
     member_name: String,
 ) -> Result<String, ServerFnError> {
-    ensure_admin_token(&admin_token)?;
-
     #[cfg(not(feature = "server"))]
     {
         let _ = (admin_token, member_name);
@@ -711,6 +716,7 @@ pub async fn admin_set_member_password(
 
     #[cfg(feature = "server")]
     {
+        ensure_admin_token(&admin_token)?;
         use argon2::{
             password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
             Argon2,
