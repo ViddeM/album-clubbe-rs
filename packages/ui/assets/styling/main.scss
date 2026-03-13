@@ -161,6 +161,32 @@
     }
 }
 
+.review-link {
+    display: inline-flex;
+    align-items: center;
+    background-color: $color-main;
+    color: $color-white;
+    padding-inline: calc($spacing * 6);
+    padding-block: calc($spacing * 3);
+    border-radius: 9999px;
+    font-weight: 600;
+    width: fit-content;
+    margin-top: calc($spacing * 3);
+
+    transition-property: color, background-color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+
+    &:hover {
+        background-color: color-mix(in oklab, $color-main 80%, $color-white);
+    }
+
+    @media (width < $medium-breakpoint) {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
 .note-icon {
     width: calc($spacing * 5);
     height: calc($spacing * 5);
@@ -299,6 +325,27 @@
     line-height: $line-height-xs;
     color: $color-purple-200;
     margin-top: $spacing;
+}
+
+// ── Album score on main page ───────────────────────────────────────────────
+
+.main-album-score {
+    display: flex;
+    align-items: center;
+    gap: calc($spacing * 2);
+    margin-top: calc($spacing * 4);
+
+    .main-album-score-num {
+        font-size: $font-size-small;
+        font-weight: $font-weight-semibold;
+        color: $color-white;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .main-album-score-count {
+        font-size: $font-size-xs;
+        color: $color-purple-300;
+    }
 }
 
 

@@ -1,6 +1,8 @@
 use api::api_models::{Album, Data, Meeting, Name};
 
-use api::get_current;
+use crate::components::stars::{AverageStars, ReviewScore};
+use crate::SiteFooter;
+use api::{get_current, get_reviews};
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::fa_brands_icons::FaSpotify;
 use dioxus_free_icons::icons::fa_regular_icons::FaClock;
@@ -12,11 +14,29 @@ const MAIN_SCSS: Asset = asset!("/assets/styling/main.scss");
 #[component]
 pub fn Main() -> Element {
     let mut data = use_signal(|| None);
+    let mut score = use_signal(|| ReviewScore::Loading);
 
     use_future(move || async move {
         let current_data = get_current().await;
         if let Err(e) = &current_data {
             eprintln!("Error fetching data: {e}");
+        }
+        if let Ok(ref d) = current_data {
+            if let Some(ref meeting_id) = d.current_meeting_id {
+                let meeting_id = meeting_id.clone();
+                match get_reviews(meeting_id).await {
+                    Ok(r) => {
+                        let scores: Vec<u8> = r.album_reviews.iter().map(|rv| rv.score).collect();
+                        score.set(ReviewScore::from_scores(&scores));
+                    }
+                    Err(e) => {
+                        eprintln!("Error fetching reviews: {e}");
+                        score.set(ReviewScore::NoReviews);
+                    }
+                }
+            } else {
+                score.set(ReviewScore::NoReviews);
+            }
         }
         data.set(Some(current_data));
     });
@@ -31,7 +51,7 @@ pub fn Main() -> Element {
 
             if let Some(data) = data() {
                 if let Ok(data) = data {
-                    RenderData { data }
+                    RenderData { data, score: score() }
                 } else {
                     div { "Kunde inte ladda data" }
                 }
@@ -39,16 +59,13 @@ pub fn Main() -> Element {
                 div { "Laddar..." }
             }
 
-            footer { class: "site-footer",
-                a { href: "/history", "Historik" }
-                a { href: "/admin", "Admin" }
-            }
+            SiteFooter {}
         }
     }
 }
 
 #[component]
-fn RenderData(data: ReadSignal<Data>) -> Element {
+fn RenderData(data: ReadSignal<Data>, score: ReviewScore) -> Element {
     rsx! {
         div { class: "first-row row",
             div { class: "double-column",
@@ -59,7 +76,7 @@ fn RenderData(data: ReadSignal<Data>) -> Element {
                     }
 
                     if let Some(album) = data().current_album {
-                        CurrentAlbumView { album, picked_by: data().current_person }
+                        CurrentAlbumView { album, picked_by: data().current_person, score }
                     } else {
                         div { class: "no-album-message",
                             p { "Inget album är valt just nu." }
@@ -86,7 +103,7 @@ fn RenderData(data: ReadSignal<Data>) -> Element {
 }
 
 #[component]
-fn CurrentAlbumView(album: Album, picked_by: Option<Name>) -> Element {
+fn CurrentAlbumView(album: Album, picked_by: Option<Name>, score: ReviewScore) -> Element {
     rsx! {
         div { class: "current-album-container gap-6",
             //  Album art
@@ -120,6 +137,25 @@ fn CurrentAlbumView(album: Album, picked_by: Option<Name>) -> Element {
                     "Lyssna på Spotify"
                     Icon { icon: FiExternalLink }
                 }
+
+                match score {
+                    ReviewScore::Rated { avg, count } => rsx! {
+                        div { class: "main-album-score",
+                            AverageStars { avg }
+                            span { class: "main-album-score-num", {format!("{:.1} / 10", avg)} }
+                            span { class: "main-album-score-count", {format!("({} röster)", count)} }
+                        }
+                    },
+                    ReviewScore::NoReviews => rsx! {
+                        div { class: "main-album-score",
+                            AverageStars { avg: 0.0, placeholder: true }
+                            span { class: "main-album-score-count", "Inga betyg ännu" }
+                        }
+                    },
+                    ReviewScore::Loading => rsx! {},
+                }
+
+                a { href: "/review", class: "review-link gap-2", "⭐ Recensera albumet" }
             }
         }
     }

@@ -110,6 +110,25 @@ a {
   color: $color-purple-400;
 }
 
+// ── Spinner ───────────────────────────────────────────────────────────────────
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+// Inline ring spinner. Drop inside any flex container.
+// Size is set via --spinner-size (default 1em so it scales with font-size).
+.spinner {
+  display: inline-block;
+  width: var(--spinner-size, 1em);
+  height: var(--spinner-size, 1em);
+  border: 2px solid color-mix(in oklab, currentColor 30%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
 .site-footer {
   margin-top: calc($spacing * 12);
   padding-block: calc($spacing * 6);

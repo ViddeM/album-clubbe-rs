@@ -199,3 +199,38 @@
         text-decoration: none;
     }
 }
+
+// ── History card score ────────────────────────────────────────────────────────
+
+.history-card-score {
+    display: flex;
+    align-items: center;
+    gap: calc($spacing * 2);
+    margin-top: calc($spacing * 1);
+
+    // Scale stars down slightly to fit the compact card layout
+    .star-rating {
+        gap: calc($spacing * 0.25);
+    }
+
+    .star-slot {
+        width: 1.25rem;
+        height: 1.25rem;
+
+        .star-bg {
+            font-size: 1.1rem;
+        }
+    }
+
+    .history-card-score-num {
+        font-size: $font-size-xs;
+        font-weight: $font-weight-semibold;
+        color: $color-white;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .history-card-score-count {
+        font-size: $font-size-xs;
+        color: $color-purple-400;
+    }
+}

@@ -5,6 +5,15 @@ const SPOTIFY_CLIENT_ID_ENV: &str = "SPOTIFY_CLIENT_ID";
 const SPOTIFY_CLIENT_SECRET_ENV: &str = "SPOTIFY_CLIENT_SECRET";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AlbumTrackItem {
+    pub id: String,
+    pub name: String,
+    pub track_number: u32,
+    pub duration_ms: Option<u64>,
+    pub spotify_url: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AlbumSearchItem {
     pub id: String,
     pub name: String,
@@ -48,6 +57,81 @@ impl SpotifyClient {
             access_token: None,
             access_token_expires_at: None,
         })
+    }
+
+    pub async fn get_album_tracks(
+        &mut self,
+        album_id: &str,
+    ) -> Result<Vec<AlbumTrackItem>, SpotifyError> {
+        self.ensure_access_token().await?;
+
+        let response = self.get_album_tracks_request(album_id).await?;
+        let status = response.status();
+
+        if status.is_success() {
+            return Self::parse_album_tracks_response(response).await;
+        }
+
+        let error_body = response.text().await.unwrap_or_default();
+
+        if Self::is_expired_token_response(status, &error_body) {
+            self.refresh_access_token().await?;
+            let retried = self.get_album_tracks_request(album_id).await?;
+            if retried.status().is_success() {
+                return Self::parse_album_tracks_response(retried).await;
+            }
+            let s = retried.status();
+            let b = retried.text().await.unwrap_or_default();
+            return Err(SpotifyError(format!(
+                "Spotify album tracks failed after token refresh (status {s}): {b}"
+            )));
+        }
+
+        Err(SpotifyError(format!(
+            "Spotify album tracks failed with status {}: {}",
+            status, error_body
+        )))
+    }
+
+    async fn get_album_tracks_request(
+        &self,
+        album_id: &str,
+    ) -> Result<reqwest::Response, SpotifyError> {
+        let access_token = self
+            .access_token
+            .as_deref()
+            .ok_or_else(|| SpotifyError("Spotify access token is not available".to_string()))?;
+
+        self.http_client
+            .get(format!(
+                "https://api.spotify.com/v1/albums/{album_id}/tracks"
+            ))
+            .query(&[("limit", "50")])
+            .bearer_auth(access_token)
+            .send()
+            .await
+            .map_err(|e| SpotifyError(format!("Spotify request failed: {e}")))
+    }
+
+    async fn parse_album_tracks_response(
+        response: reqwest::Response,
+    ) -> Result<Vec<AlbumTrackItem>, SpotifyError> {
+        let body: SpotifyTracksResponse = response
+            .json()
+            .await
+            .map_err(|e| SpotifyError(format!("Failed to parse Spotify tracks response: {e}")))?;
+
+        Ok(body
+            .items
+            .into_iter()
+            .map(|t| AlbumTrackItem {
+                id: t.id,
+                name: t.name,
+                track_number: t.track_number,
+                duration_ms: Some(t.duration_ms),
+                spotify_url: t.external_urls.map(|u| u.spotify),
+            })
+            .collect())
     }
 
     pub async fn search_albums(
@@ -190,6 +274,20 @@ impl SpotifyClient {
         let lower = body.to_ascii_lowercase();
         lower.contains("access token expired") || lower.contains("token expired")
     }
+}
+
+#[derive(Debug, Deserialize)]
+struct SpotifyTracksResponse {
+    items: Vec<SpotifyTrack>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SpotifyTrack {
+    id: String,
+    name: String,
+    track_number: u32,
+    duration_ms: u64,
+    external_urls: Option<SpotifyExternalUrls>,
 }
 
 #[derive(Debug, Deserialize)]
