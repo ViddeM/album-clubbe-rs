@@ -72,3 +72,22 @@ pub async fn admin_set_member_password_impl(
     tracing::info!("POST /api/admin/member/set-password \"{member_name}\" → ok");
     Ok(plain)
 }
+
+pub async fn admin_delete_member_impl(
+    admin_token: String,
+    member_name: String,
+) -> Result<(), ServerFnError> {
+    ensure_admin_token(&admin_token)?;
+    tracing::info!("POST /api/admin/member/delete member=\"{member_name}\"");
+
+    let pool = get_db().await?;
+
+    sqlx::query("UPDATE members SET deleted_at = datetime('now') WHERE name = ?")
+        .bind(&member_name)
+        .execute(pool)
+        .await
+        .server_err()?;
+
+    tracing::info!("POST /api/admin/member/delete \"{member_name}\" → ok");
+    Ok(())
+}

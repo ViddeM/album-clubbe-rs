@@ -17,7 +17,7 @@ pub use meetings::{
     admin_delete_history_entry_impl, admin_reorder_members_impl, admin_set_current_impl,
     admin_update_current_impl, get_current_impl, get_history_impl,
 };
-pub use members::admin_set_member_password_impl;
+pub use members::{admin_delete_member_impl, admin_set_member_password_impl};
 pub use reviews::{get_reviews_impl, submit_album_review_impl, submit_track_review_impl};
 pub use spotify::{admin_spotify_album_search_impl, get_album_tracks_impl};
 

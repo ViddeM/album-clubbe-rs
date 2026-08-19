@@ -14,7 +14,7 @@ pub async fn get_current_impl() -> Result<Data, ServerFnError> {
     let pool = get_db().await?;
 
     let members: Vec<String> =
-        sqlx::query_scalar("SELECT name FROM members ORDER BY sort_order")
+        sqlx::query_scalar("SELECT name FROM members WHERE deleted_at IS NULL ORDER BY sort_order")
             .fetch_all(pool)
             .await
             .server_err()?;

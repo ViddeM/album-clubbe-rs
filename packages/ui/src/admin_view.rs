@@ -1,4 +1,5 @@
 use api::admin_delete_history_entry;
+use api::admin_delete_member;
 use api::admin_reorder_members;
 use api::admin_set_current;
 use api::admin_set_member_password;
@@ -94,7 +95,7 @@ pub fn AdminShell(active_tab: &'static str, children: Element) -> Element {
 
             div { class: "admin-tab-bar",
                 {tab("album",    "/admin",          "Nytt album")}
-                {tab("rotation", "/admin/rotation",  "Rotation")}
+                {tab("rotation", "/admin/rotation",  "Medlemmar")}
                 {tab("historik", "/admin/historik",  "Historik")}
                 {tab("lossenord", "/admin/l%C3%B6senord", "Lösenord")}
             }
@@ -490,6 +491,7 @@ pub fn AdminRotation() -> Element {
 
     let mut reorder_state = use_signal(|| None::<Result<(), String>>);
     let mut is_submitting = use_signal(|| false);
+    let mut deleting_member: Signal<Option<String>> = use_signal(|| None);
 
     rsx! {
         div { class: "card admin-section",
@@ -503,7 +505,7 @@ pub fn AdminRotation() -> Element {
                         div { class: "member-order-buttons",
                             button {
                                 class: "admin-button-ghost",
-                                disabled: i == 0 || is_submitting(),
+                                disabled: i == 0 || is_submitting() || deleting_member().is_some(),
                                 onclick: move |_| {
                                     let mut list = members();
                                     if i > 0 {
@@ -516,7 +518,7 @@ pub fn AdminRotation() -> Element {
                             }
                             button {
                                 class: "admin-button-ghost",
-                                disabled: i + 1 >= members().len() || is_submitting(),
+                                disabled: i + 1 >= members().len() || is_submitting() || deleting_member().is_some(),
                                 onclick: move |_| {
                                     let mut list = members();
                                     if i + 1 < list.len() {
@@ -526,6 +528,36 @@ pub fn AdminRotation() -> Element {
                                     }
                                 },
                                 "↓"
+                            }
+                            button {
+                                class: "admin-button-ghost admin-history-delete",
+                                title: "Ta bort medlem",
+                                disabled: admin_token().trim().is_empty()
+                                    || is_submitting()
+                                    || deleting_member().is_some(),
+                                onclick: {
+                                    let name = member.clone();
+                                    move |_| {
+                                        let token = admin_token();
+                                        let member_name = name.clone();
+                                        deleting_member.set(Some(member_name.clone()));
+                                        spawn(async move {
+                                            if admin_delete_member(token, member_name.clone())
+                                                .await
+                                                .is_ok()
+                                            {
+                                                members.write().retain(|m| *m != member_name);
+                                                original_members.write().retain(|m| *m != member_name);
+                                            }
+                                            deleting_member.set(None);
+                                        });
+                                    }
+                                },
+                                if deleting_member().as_deref() == Some(member.as_str()) {
+                                    span { class: "spinner" }
+                                } else {
+                                    Icon { icon: FiTrash2 }
+                                }
                             }
                         }
                     }

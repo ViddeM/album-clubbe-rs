@@ -191,6 +191,23 @@ pub async fn admin_spotify_album_search(
     }
 }
 
+/// Soft-delete a member by setting their `deleted_at` timestamp.
+/// They will no longer appear in the UI or rotation, but remain in the DB
+/// so historical records referencing them stay intact.
+#[post("/api/admin/member/delete")]
+pub async fn admin_delete_member(
+    admin_token: String,
+    member_name: String,
+) -> Result<(), ServerFnError> {
+    #[cfg(feature = "server")]
+    { server::admin_delete_member_impl(admin_token, member_name).await }
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = (admin_token, member_name);
+        Err(ServerFnError::new("Only available on server builds"))
+    }
+}
+
 /// Generate a new random password for a member, store its Argon2 hash, and return
 /// the plain-text password once so the admin can share it with the member.
 #[post("/api/admin/member/set-password")]

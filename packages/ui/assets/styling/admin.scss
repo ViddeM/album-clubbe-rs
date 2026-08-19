@@ -44,6 +44,7 @@
     line-height: $line-height-small;
     font-weight: $font-weight-semibold;
     cursor: pointer;
+    text-align: center;
 
     transition-property: background-color, color;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);

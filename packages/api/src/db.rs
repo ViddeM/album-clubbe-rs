@@ -4,9 +4,7 @@ use sqlx::{
 };
 use std::str::FromStr;
 
-const INITIAL_MEMBERS: &[&str] = &[
-    "Swexbe", "Nox", "Karro", "Vidde", "Stasia", "Dino", "Yoda", "Carl", "Arvid",
-];
+const INITIAL_MEMBERS: &[&str] = &["Nox", "Karro", "Vidde", "Dino", "Yoda", "Carl", "Arvid"];
 
 pub async fn init_pool(db_url: &str) -> Result<SqlitePool, sqlx::Error> {
     let options = SqliteConnectOptions::from_str(db_url)?.create_if_missing(true);
