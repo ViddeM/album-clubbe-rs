@@ -220,6 +220,30 @@
     > h2 {
         color: $color-purple-200;
     }
+
+    > .add-to-calendar {
+        margin-inline-start: auto;
+    }
+}
+
+.add-to-calendar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: calc($spacing * 2);
+    border-radius: 0.5rem;
+    color: $color-purple-300;
+    transition: color 0.15s, background-color 0.15s;
+
+    &:hover {
+        color: $color-white;
+        background-color: color-mix(in oklab, $color-purple-400 30%, transparent);
+    }
+
+    svg {
+        width: calc($spacing * 5);
+        height: calc($spacing * 5);
+    }
 }
 
 .next-meeting-info-container {

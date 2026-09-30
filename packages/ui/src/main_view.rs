@@ -5,7 +5,7 @@ use crate::SiteFooter;
 use api::{get_current, get_reviews};
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::fa_brands_icons::FaSpotify;
-use dioxus_free_icons::icons::fa_regular_icons::FaClock;
+use dioxus_free_icons::icons::fa_regular_icons::{FaCalendarPlus, FaClock};
 use dioxus_free_icons::icons::fi_icons::{FiCalendar, FiExternalLink, FiMapPin, FiMusic, FiUsers};
 use dioxus_free_icons::Icon;
 
@@ -161,6 +161,59 @@ fn CurrentAlbumView(album: Album, picked_by: Option<Name>, score: ReviewScore) -
     }
 }
 
+/// Builds a `data:` URL containing an iCalendar event for the meeting.
+/// Dates are `YYYY-MM-DD` and times `HH:MM`. Meetings without a time become
+/// all-day events; timed ones are assumed to last two hours (floating local time).
+fn calendar_href(meeting: &Meeting) -> Option<String> {
+    let date: String = meeting.date.chars().filter(char::is_ascii_digit).collect();
+    if date.len() != 8 {
+        return None;
+    }
+
+    let time: Option<String> = meeting
+        .time
+        .as_deref()
+        .map(|t| t.chars().filter(char::is_ascii_digit).collect::<String>())
+        .filter(|t| t.len() >= 4);
+
+    let when = match &time {
+        Some(t) => {
+            let start_hour: u32 = t[..2].parse().ok()?;
+            let end_hour = (start_hour + 2).min(23);
+            let end_min = if start_hour + 2 > 23 { "59" } else { &t[2..4] };
+            format!(
+                "DTSTART:{date}T{}00\r\nDTEND:{date}T{end_hour:02}{end_min}00\r\n",
+                &t[..4]
+            )
+        }
+        None => format!("DTSTART;VALUE=DATE:{date}\r\n"),
+    };
+
+    let mut ics = format!(
+        "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Albumklubben//SV\r\nBEGIN:VEVENT\r\nUID:{date}-{}@albumklubben\r\nDTSTAMP:{date}T000000Z\r\n{when}SUMMARY:Albumklubben\r\n",
+        time.as_deref().unwrap_or("allday")
+    );
+    if let Some(location) = &meeting.location {
+        let escaped = location
+            .replace('\\', "\\\\")
+            .replace(',', "\\,")
+            .replace(';', "\\;")
+            .replace(['\r', '\n'], " ");
+        ics.push_str(&format!("LOCATION:{escaped}\r\n"));
+    }
+    ics.push_str("END:VEVENT\r\nEND:VCALENDAR\r\n");
+
+    let mut href = String::from("data:text/calendar;charset=utf-8,");
+    for b in ics.bytes() {
+        if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'~') {
+            href.push(b as char);
+        } else {
+            href.push_str(&format!("%{b:02X}"));
+        }
+    }
+    Some(href)
+}
+
 #[component]
 fn NextMeeting(next_meeting: Option<Meeting>) -> Element {
     rsx! {
@@ -168,6 +221,17 @@ fn NextMeeting(next_meeting: Option<Meeting>) -> Element {
             div { class: "next-meeting-header",
                 Icon { icon: FiCalendar, class: "calendar-icon-heading" }
                 h2 { class: "text-x1 text-purple-200", "Nästa Möte" }
+
+                if let Some(href) = next_meeting.as_ref().and_then(calendar_href) {
+                    a {
+                        class: "add-to-calendar",
+                        href,
+                        download: "albumklubben.ics",
+                        title: "Lägg till i kalendern",
+                        aria_label: "Lägg till i kalendern",
+                        Icon { icon: FaCalendarPlus }
+                    }
+                }
             }
 
             if let Some(meeting) = next_meeting {
