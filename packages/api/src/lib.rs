@@ -1,7 +1,10 @@
 //! This crate contains all shared fullstack server functions.
 use dioxus::prelude::*;
 
-use crate::api_models::{AlbumTrack, Data, HistoryEntry, Reviews, SetCurrentRequest, SpotifyAlbumSearchItem};
+use crate::api_models::{
+    AlbumTrack, Data, HistoryEntry, MemberEmail, Reviews, SendInvitesResult, SetCurrentRequest,
+    SpotifyAlbumSearchItem,
+};
 
 pub mod api_models;
 
@@ -12,7 +15,7 @@ mod db;
 mod server;
 
 #[cfg(feature = "server")]
-pub use server::init_db;
+pub use server::{init_db, init_gmail};
 
 /// Get the current album, next meeting and member list.
 #[get("/api/info")]
@@ -220,6 +223,62 @@ pub async fn admin_set_member_password(
     #[cfg(not(feature = "server"))]
     {
         let _ = (admin_token, member_name);
+        Err(ServerFnError::new("Only available on server builds"))
+    }
+}
+
+/// List all members with their (optional) email address.
+#[post("/api/admin/member/emails")]
+pub async fn admin_get_member_emails(
+    admin_token: String,
+) -> Result<Vec<MemberEmail>, ServerFnError> {
+    #[cfg(feature = "server")]
+    { server::admin_get_member_emails_impl(admin_token).await }
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = admin_token;
+        Err(ServerFnError::new("Only available on server builds"))
+    }
+}
+
+/// Set or clear (empty string) a member's email address.
+#[post("/api/admin/member/set-email")]
+pub async fn admin_set_member_email(
+    admin_token: String,
+    member_name: String,
+    email: String,
+) -> Result<(), ServerFnError> {
+    #[cfg(feature = "server")]
+    { server::admin_set_member_email_impl(admin_token, member_name, email).await }
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = (admin_token, member_name, email);
+        Err(ServerFnError::new("Only available on server builds"))
+    }
+}
+
+/// Email a calendar invite for the current meeting to every member with an email address.
+#[post("/api/admin/send-invites")]
+pub async fn admin_send_calendar_invites(
+    admin_token: String,
+) -> Result<SendInvitesResult, ServerFnError> {
+    #[cfg(feature = "server")]
+    { server::admin_send_calendar_invites_impl(admin_token).await }
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = admin_token;
+        Err(ServerFnError::new("Only available on server builds"))
+    }
+}
+
+/// Check whether the given admin token is valid.
+#[post("/api/admin/verify")]
+pub async fn admin_verify_token(admin_token: String) -> Result<(), ServerFnError> {
+    #[cfg(feature = "server")]
+    { server::ensure_admin_token(&admin_token) }
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = admin_token;
         Err(ServerFnError::new("Only available on server builds"))
     }
 }

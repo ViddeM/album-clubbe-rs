@@ -540,3 +540,8 @@ select {
         background-color: color-mix(in oklab, $color-white 14%, transparent);
     }
 }
+
+.member-email-input {
+    flex: 2;
+    min-width: 0;
+}

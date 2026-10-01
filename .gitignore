@@ -9,3 +9,4 @@
 database.db
 .env
 passwords
+service_account.json

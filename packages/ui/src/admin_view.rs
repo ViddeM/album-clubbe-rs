@@ -1,11 +1,17 @@
 use api::admin_delete_history_entry;
 use api::admin_delete_member;
+use api::admin_get_member_emails;
+use api::admin_send_calendar_invites;
+use api::admin_verify_token;
+use api::admin_set_member_email;
 use api::admin_reorder_members;
 use api::admin_set_current;
 use api::admin_set_member_password;
 use api::admin_spotify_album_search;
 use api::admin_update_current;
-use api::api_models::{Data, HistoryEntry, SetCurrentRequest, SpotifyAlbumSearchItem};
+use api::api_models::{
+    Data, HistoryEntry, SendInvitesResult, SetCurrentRequest, SpotifyAlbumSearchItem,
+};
 use api::{get_current, get_history};
 use dioxus::document::eval;
 use dioxus::prelude::*;
@@ -23,7 +29,7 @@ const ADMIN_SCSS: Asset = asset!("/assets/styling/admin.scss");
 /// header, token input, tab bar, and then `children` (the active tab content).
 ///
 /// `active_tab` must be one of `"album"`, `"rotation"`, `"historik"`, or
-/// `"lossenord"` so the correct tab can be highlighted.
+/// `"lossenord"`, or `"epost"` so the correct tab can be highlighted.
 #[component]
 pub fn AdminShell(active_tab: &'static str, children: Element) -> Element {
     let mut admin_token = use_signal(String::new);
@@ -32,8 +38,21 @@ pub fn AdminShell(active_tab: &'static str, children: Element) -> Element {
     let current_data = use_signal(|| None::<Data>);
     let history = use_signal(|| None::<Result<Vec<HistoryEntry>, String>>);
 
+    // Re-validated (debounced) whenever the token changes; the restarted
+    // resource cancels the previous run, so only the last value is checked.
+    let token_check = use_resource(move || async move {
+        let token = admin_token();
+        if token.trim().is_empty() {
+            return false;
+        }
+        wait_for_debounce().await;
+        admin_verify_token(token).await.is_ok()
+    });
+    let token_valid = use_memo(move || token_check().unwrap_or(false));
+
     use_context_provider(|| AdminCtx {
         admin_token,
+        token_valid,
         members,
         original_members,
         current_data,
@@ -98,6 +117,7 @@ pub fn AdminShell(active_tab: &'static str, children: Element) -> Element {
                 {tab("rotation", "/admin/rotation",  "Medlemmar")}
                 {tab("historik", "/admin/historik",  "Historik")}
                 {tab("lossenord", "/admin/l%C3%B6senord", "Lösenord")}
+                {tab("epost", "/admin/epost", "Epost")}
             }
 
             {children}
@@ -118,6 +138,8 @@ async fn wait_for_debounce() {
 #[derive(Clone, Copy)]
 pub struct AdminCtx {
     pub admin_token: Signal<String>,
+    /// True once the server has accepted the current admin token.
+    pub token_valid: Memo<bool>,
     pub members: Signal<Vec<String>>,
     pub original_members: Signal<Vec<String>>,
     pub current_data: Signal<Option<Data>>,
@@ -597,6 +619,159 @@ pub fn AdminRotation() -> Element {
                 } else if let Err(err) = result {
                     p { class: "admin-error", "Fel: {err}" }
                 }
+            }
+        }
+
+    }
+}
+
+// ── Member emails & calendar invites ──────────────────────────────────────────
+
+/// Email editor and invite sender. Nothing is fetched or shown until the admin
+/// token has been accepted by the server, so emails are never exposed without it.
+#[component]
+pub fn AdminEmail() -> Element {
+    let ctx = use_context::<AdminCtx>();
+    let admin_token = ctx.admin_token;
+    let token_valid = ctx.token_valid;
+    let members = ctx.members;
+
+    let emails = use_resource(move || async move {
+        if !token_valid() {
+            return None;
+        }
+        admin_get_member_emails(admin_token()).await.ok()
+    });
+
+    let mut invite_state = use_signal(|| None::<Result<SendInvitesResult, String>>);
+    let mut is_sending = use_signal(|| false);
+
+    let Some(Some(list)) = emails() else {
+        return rsx! {
+            div { class: "card admin-section",
+                h2 { "E-post" }
+                p { class: "admin-hint", "Ange en giltig admin-token för att hantera e-post." }
+            }
+        };
+    };
+    let list: Vec<_> = list
+        .into_iter()
+        .filter(|m| members().contains(&m.name))
+        .collect();
+    let any_email = list.iter().any(|m| m.email.is_some());
+
+    rsx! {
+        div { class: "card admin-section",
+            h2 { "E-post" }
+            p { class: "admin-hint",
+                "Valfri e-postadress per medlem. Visas bara för admin och används för kalenderinbjudningar."
+            }
+
+            div { class: "member-order-list",
+                for member in list {
+                    MemberEmailRow {
+                        key: "{member.name}",
+                        name: member.name,
+                        initial: member.email.unwrap_or_default(),
+                    }
+                }
+            }
+
+            button {
+                class: "admin-button admin-button-submit",
+                disabled: !any_email || is_sending(),
+                onclick: move |_| {
+                    let token = admin_token();
+                    invite_state.set(None);
+                    is_sending.set(true);
+                    spawn(async move {
+                        let result = admin_send_calendar_invites(token)
+                            .await
+                            .map_err(|e| e.to_string());
+                        is_sending.set(false);
+                        invite_state.set(Some(result));
+                    });
+                },
+                if is_sending() {
+                    span { class: "spinner" }
+                    "Skickar\u{2026}"
+                } else {
+                    "Skicka kalenderinbjudan"
+                }
+            }
+            p { class: "admin-hint",
+                "Skickar nuvarande möte till alla medlemmar med e-postadress. Spara ändringar först."
+            }
+
+            match invite_state() {
+                Some(Ok(res)) => rsx! {
+                    if !res.sent.is_empty() {
+                        p { class: "admin-success", "✓ Skickat till: {res.sent.join(\", \")}" }
+                    }
+                    for (name , err) in res.failed {
+                        p { class: "admin-error", "Fel för {name}: {err}" }
+                    }
+                },
+                Some(Err(e)) => rsx! {
+                    p { class: "admin-error", "Fel: {e}" }
+                },
+                None => rsx! {},
+            }
+        }
+    }
+}
+
+#[component]
+fn MemberEmailRow(name: String, initial: String) -> Element {
+    let ctx = use_context::<AdminCtx>();
+    let admin_token = ctx.admin_token;
+
+    let mut value = use_signal(|| initial.clone());
+    let mut saved = use_signal(|| initial);
+    let mut state = use_signal(|| None::<Result<(), String>>);
+    let mut is_saving = use_signal(|| false);
+
+    let save_name = name.clone();
+    rsx! {
+        div { class: "member-order-row",
+            span { class: "member-order-name", "{name}" }
+            input {
+                class: "member-email-input",
+                r#type: "email",
+                placeholder: "namn@example.com",
+                value: "{value}",
+                oninput: move |e| {
+                    value.set(e.value());
+                    state.set(None);
+                },
+            }
+            button {
+                class: "admin-button-ghost",
+                disabled: value().trim() == saved() || is_saving(),
+                onclick: move |_| {
+                    let token = admin_token();
+                    let member = save_name.clone();
+                    let email = value().trim().to_string();
+                    is_saving.set(true);
+                    spawn(async move {
+                        let result = admin_set_member_email(token, member, email.clone())
+                            .await
+                            .map_err(|e| e.to_string());
+                        if result.is_ok() {
+                            saved.set(email);
+                        }
+                        is_saving.set(false);
+                        state.set(Some(result));
+                    });
+                },
+                if is_saving() {
+                    span { class: "spinner" }
+                } else {
+                    "Spara"
+                }
+            }
+            if let Some(Err(e)) = state() {
+                span { class: "admin-error", "{e}" }
             }
         }
     }

@@ -5,7 +5,7 @@ mod admin_view;
 mod history_view;
 mod main_view;
 mod review_view;
-pub use admin_view::{AdminAlbum, AdminCtx, AdminHistory, AdminPasswords, AdminRotation, AdminShell};
+pub use admin_view::{AdminAlbum, AdminCtx, AdminEmail, AdminHistory, AdminPasswords, AdminRotation, AdminShell};
 pub use history_view::History;
 pub use main_view::Main;
 pub use review_view::Review;

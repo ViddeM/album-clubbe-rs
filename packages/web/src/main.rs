@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 
 use ui::{
-    AdminAlbum, AdminHistory, AdminPasswords, AdminRotation, AdminShell,
+    AdminAlbum, AdminEmail, AdminHistory, AdminPasswords, AdminRotation, AdminShell,
     History as HistoryView, Main, Review as ReviewView, Setup,
 };
 
@@ -19,6 +19,12 @@ fn main() {
             // Eagerly initialise the DB pool so startup errors surface immediately.
             if let Err(e) = api::init_db().await {
                 tracing::error!("Database initialisation failed: {e}");
+                std::process::exit(1);
+            }
+
+            // Load and validate the Gmail service account so misconfiguration fails fast.
+            if let Err(e) = api::init_gmail().await {
+                tracing::error!("Gmail initialisation failed: {e}");
                 std::process::exit(1);
             }
 
@@ -50,6 +56,8 @@ enum Route {
         AdminHistoryPage {},
         #[route("/admin/lösenord")]
         AdminPasswordsPage {},
+        #[route("/admin/epost")]
+        AdminEmailPage {},
 }
 
 #[component]
@@ -88,6 +96,8 @@ fn AdminLayout() -> Element {
         "historik"
     } else if matches!(route, Route::AdminPasswordsPage {}) {
         "lossenord"
+    } else if matches!(route, Route::AdminEmailPage {}) {
+        "epost"
     } else {
         "album"
     };
@@ -117,4 +127,9 @@ fn AdminHistoryPage() -> Element {
 #[component]
 fn AdminPasswordsPage() -> Element {
     rsx! { AdminPasswords {} }
+}
+
+#[component]
+fn AdminEmailPage() -> Element {
+    rsx! { AdminEmail {} }
 }

@@ -97,3 +97,18 @@ pub struct SetCurrentRequest {
     pub meeting_time: Option<String>,
     pub meeting_location: Option<String>,
 }
+
+/// A member together with their optional email address. Admin-only.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MemberEmail {
+    pub name: String,
+    pub email: Option<String>,
+}
+
+/// Outcome of sending calendar invites to all members with an email address.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SendInvitesResult {
+    pub sent: Vec<String>,
+    /// `(member name, error message)`
+    pub failed: Vec<(String, String)>,
+}
